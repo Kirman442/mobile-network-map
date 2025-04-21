@@ -6,10 +6,13 @@ self.onerror = function (e) {
     self.postMessage({ error: 'Worker encountered an internal error', details: e.message, originalError: e });
 };
 
-console.log('Worker script started'); // Добавь этот лог
+// console.log('Worker script started'); // Добавь этот лог
 
 import { tableFromIPC } from "apache-arrow";
 import initWasm, { readParquet } from "parquet-wasm";
+
+console.log('Worker script started AFTER IMPORTS'); // <-- Добавьте/перенесите этот лог сюда!
+console.log('Worker: apache-arrow and parquet-wasm imported successfully.'); // <-- Добавьте этот новый лог сразу после импортов
 
 // Инициализируем WASM при старте воркера один раз
 let wasmInitialized = false;
