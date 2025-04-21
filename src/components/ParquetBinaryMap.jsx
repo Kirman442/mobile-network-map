@@ -3,7 +3,7 @@ import { Map } from '@vis.gl/react-maplibre';
 import DeckGL from '@deck.gl/react';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { GridLayer, HexagonLayer, HeatmapLayer } from '@deck.gl/aggregation-layers';
-import { lightingEffect } from './effects.jsx';
+import { lightingEffect } from './Effects.jsx';
 import * as ColorMaps from './ColorScaleMaps.jsx';
 import { useParquetFileUrls } from './FileUrls';
 import WorkerPool from './workers/workerPool'
