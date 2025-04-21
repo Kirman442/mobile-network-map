@@ -49,11 +49,11 @@ let modules = null;
 let wasmInitialized = false;
 
 async function ensureWasmInitialized() {
-    if (!modules) {
-        console.log('Loading modules...');
-        modules = await importLibraries();
-        console.log('Modules loaded successfully');
-    }
+    // if (!modules) {
+    //     console.log('Loading modules...');
+    //     modules = await importLibraries();
+    //     console.log('Modules loaded successfully');
+    // }
 
     if (!wasmInitialized) {
         console.log('Initializing WASM...');
