@@ -10,9 +10,6 @@ import WorkerPool from './workers/workerPool'
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LegendPanel from './RightPanel.jsx';
 
-import arrowLibCode from './apache-arrow-iife.min.js?raw';
-import parquetWasmCode from './parquet-wasm-iife.js?raw';
-
 const INITIAL_VIEW_STATE = {
     longitude: 15.1,
     latitude: 48.9,
