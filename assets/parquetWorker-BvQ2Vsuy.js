@@ -8,7 +8,7 @@ self.onerror = function (e) {
 
 // console.log('Worker script started'); // Добавь этот лог
 
-// import { tableFromIPC } from "apache-arrow";
+import { tableFromIPC } from "apache-arrow";
 // import initWasm, { readParquet } from "parquet-wasm";
 
 console.log('Worker script started AFTER IMPORTS'); // <-- Добавьте/перенесите этот лог сюда!
