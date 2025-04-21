@@ -15,8 +15,16 @@ import initWasm, { readParquet } from "parquet-wasm";
 let wasmInitialized = false;
 async function ensureWasmInitialized() {
     if (!wasmInitialized) {
-        await initWasm();
-        wasmInitialized = true;
+        console.log('Worker: Attempting to initialize WASM...'); // Новый лог ПЕРЕД инициализацией
+        try {
+            await initWasm(); // <-- Самый подозрительный момент
+            wasmInitialized = true;
+            console.log('Worker: WASM initialized successfully!'); // Новый лог ПОСЛЕ успешной инициализации
+        } catch (wasmError) {
+            console.error('Worker: !!! Error initializing WASM:', wasmError); // Лог ошибки ИНИЦИАЛИЗАЦИИ WASM
+            // Повторно бросаем ошибку, чтобы она попала в основной self.onerror
+            throw wasmError;
+        }
     }
 }
 
@@ -37,8 +45,9 @@ self.onmessage = async function (e) {
         url = e.data.data.url;
         // --- Конец получения ---
 
-        await ensureWasmInitialized(); // Инициализация WASM
-
+        console.log(`Worker task ${taskId}: Message received, ensuring WASM...`); // Лог перед вызовом ensureWasmInitialized
+        await ensureWasmInitialized(); // <-- Вызов инициализации WASM
+        console.log(`Worker task ${taskId}: WASM ensured, fetching data from ${url}...`); // Лог перед fetch
         const res = await fetch(url);
 
         // Проверка статуса HTTP ответа
@@ -93,7 +102,7 @@ self.onmessage = async function (e) {
     } catch (error) {
         // --- Логирование ошибки в воркере и отправка в основной поток ---
         // taskId и url должны быть доступны благодаря объявлению через let в начале
-        console.error(`Worker task ${taskId !== undefined ? taskId : 'N/A'} (${url !== undefined ? url : 'N/A'}) caught error:`, error);
+        console.error(`Worker task <span class="math-inline">\{taskId \!\=\= undefined ? taskId \: 'N/A'\} \(</span>{url !== undefined ? url : 'N/A'}) caught error:`, error);
         // Отправляем ошибку обратно (включаем taskId)
         self.postMessage({ taskId: taskId !== undefined ? taskId : -1, success: false, error: error.message || 'Unknown worker error', url: url !== undefined ? url : 'N/A' });
     }
