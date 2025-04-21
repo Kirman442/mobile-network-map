@@ -1,4 +1,13 @@
 // parquetWorker.js
+// Самая первая строка в вашем worker-скрипте (parquetWorker.js)
+self.onerror = function (e) {
+    console.error('Error caught by worker.onerror:', e);
+    // Дополнительно можно отправить сообщение об ошибке обратно в главный поток
+    self.postMessage({ error: 'Worker encountered an internal error', details: e.message, originalError: e });
+};
+
+console.log('Worker script started'); // Добавь этот лог
+
 import { tableFromIPC } from "apache-arrow";
 import initWasm, { readParquet } from "parquet-wasm";
 
