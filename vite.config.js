@@ -12,7 +12,7 @@ export default defineConfig({
     wasm()
   ],
   optimizeDeps: {
-    exclude: ['parquet-wasm'] // Добавьте эту строку
+    exclude: ['parquet-wasm']
   },
   build: {
     chunkSizeWarningLimit: 1000,
