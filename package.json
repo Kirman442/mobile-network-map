@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "wasm-init": "wasm-init",
+    "compile": "wasm-compile"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.1.11",
@@ -27,7 +29,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vite-plugin-top-level-await": "^1.5.0",
-    "vite-plugin-wasm": "^3.4.1"
+    "vite-plugin-wasm": "^3.4.1",
+    "wasm-init": "^0.0.38"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
