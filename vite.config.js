@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from 'vite-plugin-top-level-await';
 
-// https://vite.dev/config/
 export default defineConfig({
   base: "/mobile-network-map/",
   plugins: [
@@ -14,12 +13,21 @@ export default defineConfig({
     plugins: [
       wasm(),
       topLevelAwait()
-    ]
+    ],
+    format: 'es' // Явно указываем ES модули
   },
   optimizeDeps: {
     exclude: ['parquet-wasm']
   },
   build: {
     chunkSizeWarningLimit: 1000,
-  },
+    assetsInlineLimit: 0, // Не инлайнить WASM как base64
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'parquet-wasm': ['parquet-wasm']
+        }
+      }
+    }
+  }
 })

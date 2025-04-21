@@ -12,6 +12,7 @@ async function ensureWasmInitialized() {
 }
 
 self.onmessage = async function (e) {
+    console.error('Worker error:', e);
     // Используем let для taskId и url, чтобы они были доступны в catch блоке
     let taskId;
     let url;
