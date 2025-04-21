@@ -8898,7 +8898,7 @@ Error generating stack: ` + c.message + `
         G.useEffect(()=>{
             const d = n.mapLib;
             let p = !0, _;
-            return Promise.resolve(d || ES(()=>import("./maplibre-gl-0adESW4g.js").then((y)=>y.m), [])).then((y)=>{
+            return Promise.resolve(d || ES(()=>import("./maplibre-gl-DpWQw6Vp.js").then((y)=>y.m), [])).then((y)=>{
                 if (!p) return;
                 if (!y) throw new Error("Invalid mapLib");
                 const v = "Map" in y ? y : y.default;
@@ -41906,7 +41906,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
             }
             async function ae() {
                 te.current = !0, console.log("Starting data loading process"), d(0), _(ye.length), u(!0), v(null), i(!0);
-                const ue = new URL("/mobile-network-map/assets/parquetWorker-atO1zHG8.js", import.meta.url);
+                const ue = new URL("/mobile-network-map/assets/parquetWorker-CwIB4Dvj.js", import.meta.url);
                 console.log("workerScriptUrl", ue), xe.current = new sB(ue, 10, {
                     type: "module"
                 }), console.log("workerPoolRef.current", xe.current), ve.current = {
