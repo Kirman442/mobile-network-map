@@ -8,8 +8,9 @@ self.onerror = function (e) {
 
 // console.log('Worker script started'); // Добавь этот лог
 
-// import { tableFromIPC } from "apache-arrow";
-import initWasm, { readParquet } from "parquet-wasm";
+import { tableFromIPC } from "apache-arrow";
+import wasmInit, { readParquet } from "parquet-wasm";
+import wasmUrl from 'parquet-wasm/esm/parquet_wasm_bg.wasm?url';
 
 
 console.log('Worker script started AFTER IMPORTS'); // <-- Добавьте/перенесите этот лог сюда!
@@ -21,7 +22,7 @@ async function ensureWasmInitialized() {
     if (!wasmInitialized) {
         console.log('Worker: Attempting to initialize WASM...'); // Новый лог ПЕРЕД инициализацией
         try {
-            await initWasm(); // <-- Самый подозрительный момент
+            await wasmInit(wasmUrl); // <-- Самый подозрительный момент
             wasmInitialized = true;
             console.log('Worker: WASM initialized successfully!'); // Новый лог ПОСЛЕ успешной инициализации
         } catch (wasmError) {
