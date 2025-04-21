@@ -8944,7 +8944,7 @@ Error generating stack: ` + c.message + `
     G.useEffect(() => {
       const d = n.mapLib;
       let p = true, _;
-      return Promise.resolve(d || ES(() => import("./maplibre-gl-BR3e-Hl8.js").then((y) => y.m), [])).then((y) => {
+      return Promise.resolve(d || ES(() => import("./maplibre-gl-CGI0iu5T.js").then((y) => y.m), [])).then((y) => {
         if (!p) return;
         if (!y) throw new Error("Invalid mapLib");
         const v = "Map" in y ? y : y.default;
@@ -42178,10 +42178,10 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
       }
       async function ae() {
         te.current = true, console.log("Starting data loading process"), d(0), _(ye.length), u(true), v(null), i(true);
-        const ue = new URL("/mobile-network-map/assets/parquetWorker-DdI-jrnp.js", import.meta.url);
-        xe.current = new sB(ue, 10, {
+        const ue = new URL("/mobile-network-map/assets/parquetWorker-DXPzWLHb.js", import.meta.url);
+        console.log("workerScriptUrl", ue), xe.current = new sB(ue, 10, {
           type: "module"
-        }), ve.current = {
+        }), console.log("workerPoolRef.current", xe.current), ve.current = {
           src: new Float32Array(0),
           length: 0
         }, console.time("\u23F1\uFE0F Full Feature Load Time"), await oe(ye), console.timeEnd("\u23F1\uFE0F Full Feature Load Time"), fe.current && u(false);
