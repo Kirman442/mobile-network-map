@@ -17,8 +17,9 @@ self.onmessage = function (e) {
 
 // import { tableFromIPC } from "apache-arrow";
 
-import wasmInit, { readParquet } from "parquet-wasm";
+// import wasmInit, { readParquet } from "parquet-wasm";
 import wasmUrl from 'parquet-wasm/esm/parquet_wasm_bg.wasm?url';
+console.log('wasmUrl:', wasmUrl);
 
 
 console.log('Worker script started AFTER IMPORTS'); // <-- Добавьте/перенесите этот лог сюда!
