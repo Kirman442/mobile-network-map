@@ -1,0 +1,20 @@
+.rotate-shift {
+    font-family: Arial, sans-serif;
+    position: absolute;
+    right: 12px;
+    bottom: 35px;
+    color: #d9d7d4;
+    mix-blend-mode: difference;
+    font-size: 15px;
+    text-align: right;
+}
+
+.maplibregl-ctrl-attrib a {
+    color: rgb(144 144 144 / 75%);
+    text-decoration: none;
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact {
+    background-color: #303030;
+    color: rgb(144 144 144 / 75%);
+}
