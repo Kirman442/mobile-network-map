@@ -13,8 +13,8 @@ export default defineConfig({
   ],
   worker: {
     plugins: [
-      wasm(),
-      topLevelAwait()
+      wasm()
+      // topLevelAwait()
     ]
   },
   optimizeDeps: {
