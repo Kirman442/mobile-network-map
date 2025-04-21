@@ -3,30 +3,23 @@ import react from '@vitejs/plugin-react'
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from 'vite-plugin-top-level-await';
 
-
-
+// https://vite.dev/config/
 export default defineConfig({
   base: "/mobile-network-map/",
-  assetsInclude: [
-    '**/*.wasm', // Включаем все .wasm файлы по умолчанию (возможно, уже есть)
-    // Явно включаем конкретный wasm файл из parquet-wasm, если он не включается автоматически
-    '**/node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm'
-  ],
   plugins: [
     react(),
-    wasm(),
-    topLevelAwait()
+    wasm()
   ],
   worker: {
-    plugins: () => [
+    plugins: [
       wasm(),
       topLevelAwait()
     ]
   },
   optimizeDeps: {
-    exclude: ['parquet-wasm', 'apache-arrow']
+    exclude: ['parquet-wasm']
   },
   build: {
     chunkSizeWarningLimit: 1000,
   },
-});
+})

@@ -1,48 +1,13 @@
 // parquetWorker.js
-// Самая первая строка в вашем worker-скрипте (parquetWorker.js)
-
-// Временно: Minimal parquetWorker.js for testing
-self.onerror = function (e) {
-    console.error('--- Minimal Worker: Error caught by onerror:', e);
-};
-console.log('--- Minimal Worker: Script started!');
-
-// self.onmessage = function (e) {
-//     console.log('--- Minimal Worker: Received message in minimal worker:', e.data);
-//     // Не делаем ничего сложного, не импортируем библиотеки, не фетчим
-//     self.postMessage({ success: true, message: 'Minimal worker received message' });
-// };
-// // Конец Minimal parquetWorker.js
-
-
 import { tableFromIPC } from "apache-arrow";
-
-import wasmInit, { readParquet } from "parquet-wasm";
-import wasmUrl from 'parquet-wasm/esm/parquet_wasm_bg.wasm?url';
-console.log('wasmUrl:', wasmUrl);
-
-
-console.log('Worker script started AFTER IMPORTS'); // <-- Добавьте/перенесите этот лог сюда!
-console.log('Worker: apache-arrow and parquet-wasm imported successfully.'); // <-- Добавьте этот новый лог сразу после импортов
+import initWasm, { readParquet } from "parquet-wasm";
 
 // Инициализируем WASM при старте воркера один раз
 let wasmInitialized = false;
 async function ensureWasmInitialized() {
     if (!wasmInitialized) {
-        console.log('Worker: Attempting to initialize WASM with URL:', wasmUrl); // Лог перед инициализацией
-        try {
-            // --- ПЕРЕДАЕМ ПОЛУЧЕННЫЙ URL В wasmInit ---
-            await wasmInit(wasmUrl);
-            // ----------------------------------------
-            wasmInitialized = true;
-            console.log('Worker: WASM initialized successfully!'); // Должен появиться при успехе
-        } catch (wasmError) {
-            console.error('Worker: !!! Error initializing WASM:', wasmError); // Должен появиться при ошибке инициализации WASM
-            // Отправляем детальную ошибку WASM в основной поток
-            self.postMessage({ error: 'WASM initialization failed', details: wasmError.message, stack: wasmError.stack });
-            // Пробрасываем ошибку дальше, чтобы она попала в onmessage catch или self.onerror
-            throw wasmError;
-        }
+        await initWasm();
+        wasmInitialized = true;
     }
 }
 
@@ -52,18 +17,20 @@ self.onmessage = async function (e) {
     let url;
 
     try {
-        // Получаем taskId и url из сообщения
+        // --- Получение taskId и данных задачи  ---
+        // Проверяем только наличие taskId и data.url
         if (!e.data || typeof e.data !== 'object' || !('taskId' in e.data) || !e.data.data || typeof e.data.data !== 'object' || !('url' in e.data.data)) {
+            // Если формат сообщения совсем не тот, бросаем ошибку сразу
             throw new Error('Invalid message format received by worker: missing taskId or data.url.');
         }
+
         taskId = e.data.taskId;
         url = e.data.data.url;
+        // --- Конец получения ---
 
-        await ensureWasmInitialized(); // Убеждаемся, что WASM инициализирован перед использованием
+        await ensureWasmInitialized(); // Инициализация WASM
 
-        console.log(`Worker task ${taskId}: WASM ensured, fetching data from ${url}...`); // Лог перед fetch
-
-        const res = await fetch(url); // Твой код загрузки данных
+        const res = await fetch(url);
 
         // Проверка статуса HTTP ответа
         if (!res.ok) {
@@ -115,14 +82,10 @@ self.onmessage = async function (e) {
         self.postMessage({ taskId: taskId, success: true, data: { src: binaryData, length: numRecords, url } }, [binaryData.buffer]);
 
     } catch (error) {
-        // Логируем и отправляем все ошибки, возникающие после onmessage
-        console.error(`Worker task ${taskId !== undefined ? taskId : 'N/A'} (${url !== undefined ? url : 'N/A'}) caught error in onmessage:`, error);
-        self.postMessage({
-            taskId: taskId !== undefined ? taskId : -1,
-            success: false,
-            error: error.message || 'Unknown error in onmessage',
-            details: error.stack || 'No stack trace available',
-            url: url !== undefined ? url : 'N/A'
-        });
+        // --- Логирование ошибки в воркере и отправка в основной поток ---
+        // taskId и url должны быть доступны благодаря объявлению через let в начале
+        console.error(`Worker task ${taskId !== undefined ? taskId : 'N/A'} (${url !== undefined ? url : 'N/A'}) caught error:`, error);
+        // Отправляем ошибку обратно (включаем taskId)
+        self.postMessage({ taskId: taskId !== undefined ? taskId : -1, success: false, error: error.message || 'Unknown worker error', url: url !== undefined ? url : 'N/A' });
     }
 };
