@@ -219,7 +219,7 @@ export default function ParquetMap() {
   // Загружаем зависимости напрямую с CDN
   self.importScripts(
     'https://unpkg.com/apache-arrow@13.0.0/Arrow.es2015.min.js',
-    'https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.1/+esm'
+    'https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.1/bundler/parquet_wasm.min.js'
   );
   
   console.log('Worker: Libraries loaded via importScripts');
