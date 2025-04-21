@@ -7,6 +7,11 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 
 export default defineConfig({
   base: "/mobile-network-map/",
+  assetsInclude: [
+    '**/*.wasm', // Включаем все .wasm файлы по умолчанию (возможно, уже есть)
+    // Явно включаем конкретный wasm файл из parquet-wasm, если он не включается автоматически
+    '**/node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm'
+  ],
   plugins: [
     react(),
     wasm(),
