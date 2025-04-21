@@ -1,31 +1,43 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from 'vite-plugin-top-level-await';
+import wasm from "vite-plugin-wasm"
+import topLevelAwait from 'vite-plugin-top-level-await'
 
 export default defineConfig({
   base: "/mobile-network-map/",
   plugins: [
     react(),
-    wasm()
+    wasm(),
+    topLevelAwait()
   ],
   worker: {
-    plugins: [
+    plugins: () => [
       wasm(),
       topLevelAwait()
     ],
-    format: 'es' // Явно указываем ES модули
+    format: 'es'
   },
   optimizeDeps: {
-    exclude: ['parquet-wasm']
+    exclude: ['parquet-wasm', 'apache-arrow']
+  },
+  resolve: {
+    alias: {
+      // Если есть проблемы с путями к WASM файлам
+      'parquet-wasm': 'parquet-wasm'
+    }
   },
   build: {
     chunkSizeWarningLimit: 1000,
-    assetsInlineLimit: 0, // Не инлайнить WASM как base64
+    assetsInlineLimit: 0, // Важно для WASM
+    target: 'esnext', // Для поддержки top-level await
+    sourcemap: true, // Для отладки
+    emptyOutDir: true, // Очищаем директорию сборки
     rollupOptions: {
       output: {
         manualChunks: {
-          'parquet-wasm': ['parquet-wasm']
+          // Выделяем библиотеки в отдельные чанки
+          'parquet-wasm': ['parquet-wasm'],
+          'apache-arrow': ['apache-arrow']
         }
       }
     }
