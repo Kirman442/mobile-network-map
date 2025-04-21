@@ -1,34 +1,45 @@
 // parquetWorker.js
 console.log('Worker starting initialization...');
 
-// Добавляем глобальный обработчик ошибок
+// Глобальный обработчик ошибок
 self.onerror = function (e) {
     console.error('Global worker error caught:', e);
-    // Предотвращаем прерывание выполнения
     return true;
 };
 
-// Пробуем импортировать библиотеки с диагностикой
-console.log('Worker: Attempting to import apache-arrow and parquet-wasm');
-
-// Оборачиваем импорты в async функцию для лучшей обработки ошибок
-async function importLibraries() {
+// Используем динамический импорт с правильными относительными путями
+async function loadDependencies() {
     try {
-        console.log('Importing apache-arrow...');
-        const arrowModule = await import("apache-arrow");
-        console.log('apache-arrow imported successfully');
+        console.log('Worker: Loading dependencies via importScripts...');
 
-        console.log('Importing parquet-wasm...');
-        const parquetModule = await import("parquet-wasm");
-        console.log('parquet-wasm imported successfully');
+        // URL прямо к файлам в собранной версии
+        const baseUrl = self.location.origin + self.location.pathname.slice(0, self.location.pathname.lastIndexOf('/') + 1);
+
+        // Получаем ссылки на необходимые модули
+        console.log('Base URL for imports:', baseUrl);
+        const arrowUrl = new URL('./apache-arrow-iife.min.js', baseUrl).href;
+        const parquetWasmUrl = new URL('./parquet-wasm-iife.js', baseUrl).href;
+
+        console.log('Loading apache-arrow from', arrowUrl);
+        console.log('Loading parquet-wasm from', parquetWasmUrl);
+
+        // Загружаем скрипты синхронно
+        importScripts(arrowUrl, parquetWasmUrl);
+
+        console.log('Scripts loaded successfully');
+
+        // После загрузки скриптов, эти объекты должны быть доступны глобально
+        if (!self.Apache || !self.Apache.Arrow || !self.parquetWasm) {
+            throw new Error('Failed to load required libraries');
+        }
 
         return {
-            tableFromIPC: arrowModule.tableFromIPC,
-            initWasm: parquetModule.default,
-            readParquet: parquetModule.readParquet
+            tableFromIPC: self.Apache.Arrow.tableFromIPC,
+            initWasm: self.parquetWasm.default,
+            readParquet: self.parquetWasm.readParquet
         };
     } catch (error) {
-        console.error('Failed to import libraries:', error);
+        console.error('Failed to load dependencies:', error);
         throw error;
     }
 }
