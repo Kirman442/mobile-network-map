@@ -10,6 +10,9 @@ import WorkerPool from './workers/workerPool'
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LegendPanel from './RightPanel.jsx';
 
+import arrowLibCode from './apache-arrow-iife.min.js?raw';
+import parquetWasmCode from './parquet-wasm-iife.js?raw';
+
 const INITIAL_VIEW_STATE = {
     longitude: 15.1,
     latitude: 48.9,
@@ -217,10 +220,8 @@ export default function ParquetMap() {
   console.log('Worker: Starting initialization...');
 
   // Загружаем зависимости напрямую с CDN
-  self.importScripts(
-    'https://cdn.jsdelivr.net/npm/apache-arrow@19.0.1/Arrow.es2015.min.js',
-    'https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/parquet_wasm.js'
-  );
+  ${arrowLibCode}
+  ${parquetWasmCode}
   
   console.log('Worker: Libraries loaded via importScripts');
   
