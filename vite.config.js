@@ -11,6 +11,12 @@ export default defineConfig({
     react(),
     wasm()
   ],
+  worker: {
+    plugins: [
+      wasm(),
+      topLevelAwait()
+    ]
+  },
   optimizeDeps: {
     exclude: ['parquet-wasm']
   },
