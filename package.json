@@ -17,6 +17,7 @@
     "@deck.gl/core": "^9.1.11",
     "@deck.gl/layers": "^9.1.11",
     "@deck.gl/react": "^9.1.11",
+    "@rollup/plugin-wasm": "^6.2.2",
     "@vis.gl/react-maplibre": "^8.0.4",
     "apache-arrow": "^19.0.1",
     "d3-scale": "^4.0.2",
@@ -25,6 +26,7 @@
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "vite-plugin-top-level-await": "^1.5.0",
     "vite-plugin-wasm": "^3.4.1"
   },
   "devDependencies": {
