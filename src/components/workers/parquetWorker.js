@@ -20,14 +20,18 @@ console.log('Worker: apache-arrow and parquet-wasm imported successfully.'); // 
 let wasmInitialized = false;
 async function ensureWasmInitialized() {
     if (!wasmInitialized) {
-        console.log('Worker: Attempting to initialize WASM...'); // Новый лог ПЕРЕД инициализацией
+        console.log('Worker: Attempting to initialize WASM with URL:', wasmUrl); // Лог перед инициализацией
         try {
-            await wasmInit(wasmUrl); // <-- Самый подозрительный момент
+            // --- ПЕРЕДАЕМ ПОЛУЧЕННЫЙ URL В wasmInit ---
+            await wasmInit(wasmUrl);
+            // ----------------------------------------
             wasmInitialized = true;
-            console.log('Worker: WASM initialized successfully!'); // Новый лог ПОСЛЕ успешной инициализации
+            console.log('Worker: WASM initialized successfully!'); // Должен появиться при успехе
         } catch (wasmError) {
-            console.error('Worker: !!! Error initializing WASM:', wasmError); // Лог ошибки ИНИЦИАЛИЗАЦИИ WASM
-            // Повторно бросаем ошибку, чтобы она попала в основной self.onerror
+            console.error('Worker: !!! Error initializing WASM:', wasmError); // Должен появиться при ошибке инициализации WASM
+            // Отправляем детальную ошибку WASM в основной поток
+            self.postMessage({ error: 'WASM initialization failed', details: wasmError.message, stack: wasmError.stack });
+            // Пробрасываем ошибку дальше, чтобы она попала в onmessage catch или self.onerror
             throw wasmError;
         }
     }
@@ -39,21 +43,18 @@ self.onmessage = async function (e) {
     let url;
 
     try {
-        // --- Получение taskId и данных задачи  ---
-        // Проверяем только наличие taskId и data.url
+        // Получаем taskId и url из сообщения
         if (!e.data || typeof e.data !== 'object' || !('taskId' in e.data) || !e.data.data || typeof e.data.data !== 'object' || !('url' in e.data.data)) {
-            // Если формат сообщения совсем не тот, бросаем ошибку сразу
             throw new Error('Invalid message format received by worker: missing taskId or data.url.');
         }
-
         taskId = e.data.taskId;
         url = e.data.data.url;
-        // --- Конец получения ---
 
-        console.log(`Worker task ${taskId}: Message received, ensuring WASM...`); // Лог перед вызовом ensureWasmInitialized
-        await ensureWasmInitialized(); // <-- Вызов инициализации WASM
+        await ensureWasmInitialized(); // Убеждаемся, что WASM инициализирован перед использованием
+
         console.log(`Worker task ${taskId}: WASM ensured, fetching data from ${url}...`); // Лог перед fetch
-        const res = await fetch(url);
+
+        const res = await fetch(url); // Твой код загрузки данных
 
         // Проверка статуса HTTP ответа
         if (!res.ok) {
@@ -105,10 +106,14 @@ self.onmessage = async function (e) {
         self.postMessage({ taskId: taskId, success: true, data: { src: binaryData, length: numRecords, url } }, [binaryData.buffer]);
 
     } catch (error) {
-        // --- Логирование ошибки в воркере и отправка в основной поток ---
-        // taskId и url должны быть доступны благодаря объявлению через let в начале
-        console.error(`Worker task <span class="math-inline">\{taskId \!\=\= undefined ? taskId \: 'N/A'\} \(</span>{url !== undefined ? url : 'N/A'}) caught error:`, error);
-        // Отправляем ошибку обратно (включаем taskId)
-        self.postMessage({ taskId: taskId !== undefined ? taskId : -1, success: false, error: error.message || 'Unknown worker error', url: url !== undefined ? url : 'N/A' });
+        // Логируем и отправляем все ошибки, возникающие после onmessage
+        console.error(`Worker task ${taskId !== undefined ? taskId : 'N/A'} (${url !== undefined ? url : 'N/A'}) caught error in onmessage:`, error);
+        self.postMessage({
+            taskId: taskId !== undefined ? taskId : -1,
+            success: false,
+            error: error.message || 'Unknown error in onmessage',
+            details: error.stack || 'No stack trace available',
+            url: url !== undefined ? url : 'N/A'
+        });
     }
 };
