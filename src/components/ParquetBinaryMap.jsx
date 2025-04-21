@@ -204,8 +204,9 @@ export default function ParquetMap() {
 
             // Создаем worker pool
             const workerScriptUrl = new URL('./workers/parquetWorker.js', import.meta.url);
+            console.log('workerScriptUrl', workerScriptUrl)
             workerPoolRef.current = new WorkerPool(workerScriptUrl, 10, { type: 'module' });
-
+            console.log('workerPoolRef.current', workerPoolRef.current)
             // Сбрасываем текущие данные
             currentDataRef.current = { src: new Float32Array(0), length: 0 };
 
