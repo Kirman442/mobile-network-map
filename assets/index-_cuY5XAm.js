@@ -8898,7 +8898,7 @@ Error generating stack: ` + c.message + `
         G.useEffect(()=>{
             const d = n.mapLib;
             let p = !0, _;
-            return Promise.resolve(d || ES(()=>import("./maplibre-gl-2RedEzo5.js").then((y)=>y.m), [])).then((y)=>{
+            return Promise.resolve(d || ES(()=>import("./maplibre-gl-C3XaiVBz.js").then((y)=>y.m), [])).then((y)=>{
                 if (!p) return;
                 if (!y) throw new Error("Invalid mapLib");
                 const v = "Map" in y ? y : y.default;
@@ -41917,8 +41917,8 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
 
   // Загружаем зависимости напрямую с CDN
   self.importScripts(
-    'https://unpkg.com/apache-arrow@13.0.0/Arrow.es2015.min.js',
-    'https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.1/bundler/parquet_wasm.min.js'
+    'https://cdn.jsdelivr.net/npm/apache-arrow@19.0.1/Arrow.es2015.min.js',
+    'https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/parquet_wasm.js'
   );
   
   console.log('Worker: Libraries loaded via importScripts');
