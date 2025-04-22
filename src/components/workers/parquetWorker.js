@@ -12,7 +12,6 @@ async function ensureWasmInitialized() {
 }
 
 self.onmessage = async function (e) {
-    console.error('Worker error:', e);
     // Используем let для taskId и url, чтобы они были доступны в catch блоке
     let taskId;
     let url;
@@ -89,8 +88,7 @@ self.onmessage = async function (e) {
         // Отправляем ошибку обратно (включаем taskId)
         self.postMessage({ taskId: taskId !== undefined ? taskId : -1, success: false, error: error.message || 'Unknown worker error', url: url !== undefined ? url : 'N/A' });
     }
-};
-
+}
 
 // // parquetWorker.js
 // console.log('Worker starting initialization...');
