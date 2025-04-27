@@ -15,9 +15,9 @@ const ColorLegend = ({ schemeDefinition, activeLayerKey }) => {
     // Определяем заголовок легенды
     let legendTitle = "Legend";
     if (activeLayerKey === 'scatterplot') {
-        legendTitle = "Speed Gradient";
+        legendTitle = "Legend";
     } else if (activeLayerKey === 'hexagon' || activeLayerKey === 'heatmap') {
-        legendTitle = "Speed Gradient";
+        legendTitle = "Legend";
     }
 
     // --- Создаем строку для CSS linear-gradient ---
@@ -38,7 +38,7 @@ const ColorLegend = ({ schemeDefinition, activeLayerKey }) => {
     // --- Отрисовка Легенды с градиентной полосой и мин/макс метками ---
     return (
         <div className="color-legend"> {/* Главный контейнер легенды */}
-            <p className='dataset text-center'>{legendTitle} - {displayName}</p> {/* Заголовок и имя схемы */}
+            <p className='dataset text-center'>{legendTitle}</p> {/* Заголовок и имя схемы - Color palette {displayName} */}
 
             {/* Контейнер для градиентной полосы и меток */}
             {/* Делаем его position: relative, чтобы метки внутри можно было позиционировать абсолютно */}
