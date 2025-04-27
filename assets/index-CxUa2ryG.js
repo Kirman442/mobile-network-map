@@ -8899,7 +8899,7 @@ Error generating stack: ` + c.message + `
         Q.useEffect(()=>{
             const d = n.mapLib;
             let p = !0, _;
-            return Promise.resolve(d || CS(()=>import("./maplibre-gl-BpLFnA0u.js").then((y)=>y.m), [])).then((y)=>{
+            return Promise.resolve(d || CS(()=>import("./maplibre-gl-D5MLHY1U.js").then((y)=>y.m), [])).then((y)=>{
                 if (!p) return;
                 if (!y) throw new Error("Invalid mapLib");
                 const v = "Map" in y ? y : y.default;
@@ -41735,7 +41735,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
                             children: [
                                 be.jsx("div", {
                                     className: "panel-title",
-                                    children: "Internet Speed Map"
+                                    children: "Internet speed map"
                                 }),
                                 be.jsx("div", {
                                     className: "panel-expander",
@@ -41800,7 +41800,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
                             children: [
                                 be.jsx("div", {
                                     className: "panel-title",
-                                    children: "Infos zum Datensatz"
+                                    children: "Information"
                                 }),
                                 be.jsx("div", {
                                     className: "panel-expander",
@@ -41814,12 +41814,12 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
                                 className: "description-block",
                                 children: [
                                     be.jsx("h4", {
-                                        children: "Über den Datensatz"
+                                        children: "About the dataset"
                                     }),
                                     be.jsxs("p", {
                                         className: "dataset",
                                         children: [
-                                            "Dieser Datensatz enthält Leistungskennzahlen für globale mobile Breitbandnetze in Form von Mercator-Kacheln auf Skalenebene 16 (etwa 610,8 Meter mal 610,8 Meter am Äquator). Upload- und Download-Geschwindigkeiten sowie Latenzzeiten werden mit den Speedtest by Ookla-Apps für Android und iOS erfasst und für jede Kachel gemittelt. Die Messungen werden gefiltert, um Ergebnisse mit einer Standortgenauigkeit in GPS-Qualität zu erhalten.",
+                                            "This dataset provides global mobile network performance metrics in zoom level 16 web mercator tiles (approximately 610.8 meters by 610.8 meters at the equator). Data is provided as Apache Parquet with geometries represented in Well Known Text (WKT) projected in EPSG:4326. Download speed, upload speed, and latency are collected via the Speedtest by Ookla applications for Android and iOS and averaged for each tile. Measurements are filtered to results containing GPS-quality location accuracy.",
                                             be.jsx("br", {}),
                                             be.jsx("br", {}),
                                             " "
@@ -41827,7 +41827,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
                                     }),
                                     be.jsxs("p", {
                                         children: [
-                                            "Datenquelle: ",
+                                            "Data source: ",
                                             be.jsx("a", {
                                                 href: "https://github.com/teamookla/ookla-open-data",
                                                 target: "_blank",
