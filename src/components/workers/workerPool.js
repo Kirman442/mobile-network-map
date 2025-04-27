@@ -1,141 +1,188 @@
+// components/workers/workerPool.js
 class WorkerPool {
-    // --- Шаг 1: Добавляем параметр workerOptions в конструктор ---
-    constructor(workerScript, poolSize = navigator.hardwareConcurrency - 1 || 3, workerOptions = {}) {
-        this.taskQueue = []; // Очередь задач
-        this.workers = []; // Массив объектов воркеров { worker, busy, id }
-        this.poolSize = Math.max(2, poolSize); // Размер пула
-        this.workerScript = workerScript; // Сохраняем URL скрипта воркера
-        this.workerOptions = workerOptions; // <-- Шаг 2: Сохраняем опции воркера
-        this.taskPromises = new Map(); // Карта для хранения Promise'ов задач по ID { taskId: { resolve, reject } }
-        this.nextTaskId = 0; // Счетчик для уникальных ID задач
+    // Принимает workerConstructor вместо workerScript
+    constructor(workerConstructor, poolSize = navigator.hardwareConcurrency - 1 || 3, workerOptions = {}, wasmProcessor) {
+        this.taskQueue = [];
+        this.workers = [];
+        this.poolSize = Math.max(2, poolSize);
 
-        this.initialize(); // Инициализируем воркеры
+        // Проверяем конструктор воркера (оставляем console.error для этой критической проверки)
+        if (typeof workerConstructor !== 'function' || !workerConstructor.prototype) {
+            console.error("WorkerPool: Invalid Worker constructor provided:", workerConstructor);
+            throw new Error("WorkerPool requires a valid Worker constructor function.");
+        }
+        this.workerConstructor = workerConstructor;
+        this.workerOptions = workerOptions; // Сохраняем опции
+
+        this.taskPromises = new Map();
+        this.nextTaskId = 0;
+
+        // Проверяем обработчик WASM
+        if (typeof wasmProcessor !== 'function') {
+            throw new Error("WorkerPool requires a valid wasmProcessor function.");
+        }
+        this.wasmProcessor = wasmProcessor;
+
+        this.initialize();
     }
 
     initialize() {
         for (let i = 0; i < this.poolSize; i++) {
-            // --- Шаг 3: Передаем опции в конструктор Worker ---
-            const worker = new Worker(this.workerScript, this.workerOptions); // <-- Передаем this.workerOptions сюда!
+            const workerId = `worker-${i}`;
+            try {
+                const worker = new this.workerConstructor(this.workerOptions);
 
-            this.workers.push({ worker, busy: false, id: `worker-${i}` });
+                const workerObj = { worker, busy: false, id: workerId, currentTaskId: null };
+                this.workers.push(workerObj);
 
-            // --- Шаг 4: Перерабатываем обработчики сообщений для использования taskId ---
-            // Единый обработчик для всех сообщений от этого воркера
-            worker.onmessage = (e) => {
-                // Ожидаем, что сообщение содержит taskId и результат (success/error)
-                const { taskId, success, data, error } = e.data;
-
-                const taskPromise = this.taskPromises.get(taskId);
-                if (taskPromise) {
-                    // Удаляем Promise из карты, так как задача завершена
-                    this.taskPromises.delete(taskId);
-
-                    // Разрешаем или отклоняем Promise в зависимости от успеха
-                    if (success) {
-                        taskPromise.resolve({ success: true, data: data }); // Разрешаем с результатом
-                    } else {
-                        // Отклоняем Promise с ошибкой
-                        taskPromise.reject(new Error(error || `Worker task ${taskId} failed without specific error.`));
+                worker.onmessage = async (e) => {
+                    const messageData = e.data;
+                    // Проверка наличия taskId (оставляем console.error для нарушения протокола)
+                    if (!messageData || typeof messageData.taskId === 'undefined') {
+                        console.error(`WorkerPool (${workerObj.id}): Received message without taskId`, messageData);
+                        return; // Прерываем обработку, если нет ID
                     }
 
-                    // Освобождаем воркер и пытаемся взять следующую задачу
-                    const workerObj = this.workers.find(w => w.worker === worker);
-                    if (workerObj) {
+                    const taskId = messageData.taskId;
+                    const taskPromise = this.taskPromises.get(taskId);
+
+                    try {
+                        // Обработка запроса на WASM
+                        if (messageData.type === 'WASM_REQUEST') {
+                            if (this.wasmProcessor) {
+                                // Неявно предполагаем, что messageData.payload это ArrayBuffer или совместимый тип
+                                const result = await this.wasmProcessor(messageData.payload);
+                                // Проверяем, что результат имеет buffer для передачи (добавлено)
+                                if (!result?.buffer) {
+                                    throw new Error('WASM processor did not return an object with a transferable buffer.');
+                                }
+                                worker.postMessage({ taskId, type: 'WASM_RESPONSE', payload: result }, [result.buffer]);
+                            } else {
+                                // Ошибка, если обработчик WASM отсутствует
+                                throw new Error('WASM Processor not configured or available.');
+                            }
+                        }
+                        // Обработка успешного финального результата
+                        else if (messageData.success && messageData.type === 'FINAL_RESULT') {
+                            if (taskPromise) {
+                                // Разрешаем промис с полным сообщением (содержит data)
+                                taskPromise.resolve(messageData); // Используем resolve(messageData) чтобы получить data в основном потоке
+                                this.taskPromises.delete(taskId);
+                            } // Не логируем предупреждение об неизвестном taskId в production
+                            workerObj.busy = false;
+                            workerObj.currentTaskId = null;
+                            this.processNextTask();
+                        }
+                        // Обработка сообщения об ошибке от воркера
+                        else if (!messageData.success) {
+                            if (taskPromise) {
+                                // Отклоняем промис с сообщением об ошибке из воркера
+                                taskPromise.reject(new Error(messageData.error || `Worker task ${taskId} failed without specific error message.`));
+                                this.taskPromises.delete(taskId);
+                            } // Не логируем предупреждение об неизвестном taskId в production
+                            workerObj.busy = false;
+                            workerObj.currentTaskId = null;
+                            this.processNextTask();
+                        }
+                        // Обработка неизвестного типа сообщения
+                        else {
+                            if (taskPromise) {
+                                taskPromise.reject(new Error(`Unknown message type received from worker: ${messageData.type}`));
+                                this.taskPromises.delete(taskId);
+                            }
+                            workerObj.busy = false;
+                            workerObj.currentTaskId = null;
+                            this.processNextTask();
+                        }
+                    } catch (error) {
+                        // Логируем ошибку, возникшую при обработке сообщения ЗДЕСЬ, в WorkerPool
+                        console.error(`WorkerPool (${workerObj.id}): Error handling message for task ${taskId}:`, error);
+                        if (taskPromise) {
+                            // Отклоняем промис задачи основной ошибкой
+                            taskPromise.reject(error instanceof Error ? error : new Error(String(error)));
+                            this.taskPromises.delete(taskId);
+                        }
+                        // Освобождаем воркер после ошибки
                         workerObj.busy = false;
+                        workerObj.currentTaskId = null;
                         this.processNextTask();
                     }
-                } else {
-                    // Это сообщение для задачи, которую мы не отслеживаем (уже завершена?)
-                    console.warn(`Worker ${this.workers.find(w => w.worker === worker).id} sent message for unknown or completed task ID: ${taskId}`, e.data);
-                }
-            };
+                };
 
-            // Единый обработчик фатальных ошибок воркера (например, ошибка загрузки скрипта, необработанное исключение)
-            worker.onerror = (error) => {
-                console.error(`Fatal Error in worker ${this.workers.find(w => w.worker === worker).id}:`, error);
+                // Обработчик фатальных ошибок воркера (onerror) - оставляем console.error
+                worker.onerror = (event) => {
+                    console.error(`WorkerPool (${workerObj.id}): Fatal Error EVENT received:`, event);
+                    let errorMessage = 'Unknown fatal error (event logged above).';
+                    if (event.message) {
+                        errorMessage = event.message;
+                    } else if (event.error) {
+                        errorMessage = event.error.message || event.error.toString();
+                        console.error(`WorkerPool (${workerObj.id}): Nested error object:`, event.error);
+                    } else if (typeof event === 'string') {
+                        errorMessage = event;
+                    }
 
-                // В случае фатальной ошибки, все текущие задачи, запущенные на этом воркере, могут быть испорчены.
-                // Лучше всего полагаться на то, что сам воркер отправит сообщение об ошибке задачи через onmessage.
-                // Этот onerror больше для диагностики проблем самого воркера.
-                // Пока просто помечаем воркер как свободный (или лучше его перезапустить/заменить?)
-                const workerObj = this.workers.find(w => w.worker === worker);
-                if (workerObj) {
+                    const currentTaskId = workerObj.currentTaskId;
+                    if (currentTaskId !== null) {
+                        const taskPromise = this.taskPromises.get(currentTaskId);
+                        if (taskPromise) {
+                            taskPromise.reject(new Error(`Fatal error in worker ${workerObj.id} while processing task ${currentTaskId}. Message: ${errorMessage}`));
+                            this.taskPromises.delete(currentTaskId);
+                        }
+                    }
                     workerObj.busy = false;
-                    // В продакшене, возможно, стоит terminate() этот воркер и создать новый
-                    this.processNextTask(); // Пытаемся запустить следующую задачу на другом воркере
-                }
-            };
-            // --- Конец переработки обработчиков ---
+                    workerObj.currentTaskId = null;
+                    this.processNextTask();
+                };
+
+            } catch (error) {
+                // Логируем критическую ошибку создания экземпляра воркера
+                console.error(`WorkerPool: Failed to instantiate worker ${workerId}:`, error);
+            }
+        }
+
+        // Проверка и логирование, если не удалось создать ни одного воркера
+        if (this.workers.length === 0 && this.poolSize > 0) {
+            console.error("WorkerPool: Failed to initialize ANY workers!");
         }
     }
 
-    // Метод добавления задачи в очередь
     enqueueTask(taskData) {
-        // Шаг 5: Теперь Promise поддерживает reject
         return new Promise((resolve, reject) => {
-            const taskId = this.nextTaskId++; // Генерируем уникальный ID для задачи
-            // Шаг 6: Сохраняем taskId вместе с задачей и Promise'ами
+            const taskId = this.nextTaskId++;
             this.taskQueue.push({ taskId: taskId, data: taskData, resolve: resolve, reject: reject });
-            // Шаг 7: Сохраняем Promise'ы в карту по taskId
             this.taskPromises.set(taskId, { resolve: resolve, reject: reject });
-
-            this.processNextTask(); // Пытаемся запустить задачу сразу
+            this.processNextTask();
         });
     }
 
-    // Метод обработки следующей задачи
     processNextTask() {
-        if (this.taskQueue.length === 0) return; // Нет задач в очереди
-        const availableWorker = this.workers.find(w => !w.busy); // Ищем свободный воркер
-        if (!availableWorker) return; // Все воркеры заняты
+        if (this.taskQueue.length === 0) return;
+        const availableWorker = this.workers.find(w => !w.busy);
+        if (!availableWorker) return;
 
-        const nextTask = this.taskQueue.shift(); // Берем следующую задачу из очереди
-        availableWorker.busy = true; // Помечаем воркер как занятый
-
-        // Шаг 8: Отправляем сообщение воркеру, ВКЛЮЧАЯ taskId и данные задачи
-        availableWorker.worker.postMessage({ taskId: nextTask.taskId, data: nextTask.data });
+        const nextTask = this.taskQueue.shift();
+        availableWorker.busy = true;
+        availableWorker.currentTaskId = nextTask.taskId;
+        // Отправляем начальное сообщение воркеру
+        availableWorker.worker.postMessage({ taskId: nextTask.taskId, type: 'INITIAL_TASK', data: nextTask.data });
     }
 
-    async processFile(parquetData, fileName, isLargeFile = false) {
-        if (!isLargeFile) {
-            return this.enqueueTask({
-                parquetData,
-                fileName,
-                isLargeFile
-            });
-        } else {
-            // Для больших файлов разбиваем на чанки
-            const CHUNK_SIZE = 80000;
-            const chunks = [];
-            const totalRows = parquetData.data.length;
-
-            for (let i = 0; i < totalRows; i += CHUNK_SIZE) {
-                chunks.push({
-                    parquetData,
-                    fileName,
-                    isLargeFile: true,
-                    chunkStart: i,
-                    chunkEnd: Math.min(i + CHUNK_SIZE, totalRows)
-                });
-            }
-
-            // Возвращаем Promise, который разрешится, когда все чанки будут обработаны
-            const results = await Promise.all(chunks.map(chunk => this.enqueueTask(chunk)));
-            return {
-                features: results.flatMap(result => result.features),
-                fileName,
-                processingTime: results.reduce((sum, r) => sum + (r.processingTime || 0), 0),
-                processedRowsCount: results.reduce((sum_1, r_1) => sum_1 + (r_1.processedRowsCount || 0), 0),
-                success: results.every(r_2 => r_2.success)
-            };
-        }
-    }
-    // Метод для завершения всех воркеров (если нужно)
     terminate() {
-        this.workers.forEach(({ worker }) => worker.terminate());
+        this.workers.forEach(({ worker, id }) => {
+            try {
+                // Добавим try-catch на случай ошибки при terminate
+                worker.terminate();
+            } catch (e) {
+                console.error(`WorkerPool: Error terminating worker ${id}:`, e);
+            }
+        });
         this.workers = [];
         this.taskQueue = [];
+        // Отклоняем все ожидающие промисы
+        this.taskPromises.forEach(p => p.reject(new Error("WorkerPool terminated")));
         this.taskPromises.clear();
     }
 }
+
 export default WorkerPool;
