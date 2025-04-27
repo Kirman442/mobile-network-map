@@ -113,7 +113,7 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
             {/* Информационный блок */}
             <div className="panel-block">
                 <div className="panel-header" onClick={toggleInfoPanel}>
-                    <div className="panel-title">Internet Speed Map</div>
+                    <div className="panel-title">Internet speed map</div>
                     <div className="panel-expander">
                         {isInfoExpanded ? '×' : 'i'}
                     </div>
@@ -145,7 +145,7 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
             {/* Dataset блок */}
             <div className="panel-block">
                 <div className="panel-header" onClick={toggleDatasetPanel}>
-                    <div className="panel-title">Infos zum Datensatz</div>
+                    <div className="panel-title">Information</div>
                     <div className="panel-expander">
                         {isDatasetExpanded ? '×' : 'i'}
                     </div>
@@ -154,12 +154,12 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                 {isDatasetExpanded && (
                     <div className="panel-content">
                         <div className="description-block">
-                            <h4>Über den Datensatz</h4>
+                            <h4>About the dataset</h4>
                             <p className="dataset">
-                                Dieser Datensatz enthält Leistungskennzahlen für globale mobile Breitbandnetze in Form von Mercator-Kacheln auf Skalenebene 16 (etwa 610,8 Meter mal 610,8 Meter am Äquator). Upload- und Download-Geschwindigkeiten sowie Latenzzeiten werden mit den Speedtest by Ookla-Apps für Android und iOS erfasst und für jede Kachel gemittelt. Die Messungen werden gefiltert, um Ergebnisse mit einer Standortgenauigkeit in GPS-Qualität zu erhalten.
+                                This dataset provides global mobile network performance metrics in zoom level 16 web mercator tiles (approximately 610.8 meters by 610.8 meters at the equator). Data is provided as Apache Parquet with geometries represented in Well Known Text (WKT) projected in EPSG:4326. Download speed, upload speed, and latency are collected via the Speedtest by Ookla applications for Android and iOS and averaged for each tile. Measurements are filtered to results containing GPS-quality location accuracy.
                                 <br /><br /> </p>
 
-                            <p>Datenquelle: <a href="https://github.com/teamookla/ookla-open-data" target="_blank" rel="noopener noreferrer">Ookla Global Mobile Network</a></p>
+                            <p>Data source: <a href="https://github.com/teamookla/ookla-open-data" target="_blank" rel="noopener noreferrer">Ookla Global Mobile Network</a></p>
 
                         </div>
                     </div>
