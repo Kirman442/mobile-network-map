@@ -106,6 +106,10 @@
     background: #0f1011;
 }
 
+.legend-button.active {
+    background: #0f1011;
+}
+
 .mb-10 {
     margin-bottom: 15px;
 }
