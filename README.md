@@ -58,4 +58,4 @@ The project utilizes a **Worker Pool** architecture to manage parallel data load
 
 ## Results
 
-This approach enables smooth, interactive visualization and exploration of hundreds of thousands of data points representing internet speed across Europe directly within a web browser, demonstrating a viable strategy for handling large datasets in demanding web-based data visualization applications.
+This approach enables smooth, interactive visualization and exploration of hundreds of thousands of data points representing internet speed directly within a web browser, demonstrating a viable strategy for handling large datasets in demanding web-based data visualization applications.
