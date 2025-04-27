@@ -8899,7 +8899,7 @@ Error generating stack: ` + c.message + `
         Q.useEffect(()=>{
             const d = n.mapLib;
             let p = !0, _;
-            return Promise.resolve(d || CS(()=>import("./maplibre-gl-C1zlUV-q.js").then((y)=>y.m), [])).then((y)=>{
+            return Promise.resolve(d || CS(()=>import("./maplibre-gl-CgZ_LCqG.js").then((y)=>y.m), [])).then((y)=>{
                 if (!p) return;
                 if (!y) throw new Error("Invalid mapLib");
                 const v = "Map" in y ? y : y.default;
@@ -41635,7 +41635,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
         if (!n || !n.domain || !n.colorRange || n.domain.length !== n.colorRange.length + 1) return null;
         const { displayName: t, domain: i, colorRange: r } = n;
         let a = "Legend";
-        (e === "scatterplot" || e === "hexagon" || e === "heatmap") && (a = "Speed Gradient");
+        (e === "scatterplot" || e === "hexagon" || e === "heatmap") && (a = "Legend");
         const u = `linear-gradient(to right, ${r.map((h, d)=>{
             const p = h && h.length > 3 ? h[3] / 255 : 1, _ = `rgba(${h[0]}, ${h[1]}, ${h[2]}, ${p})`, y = d / (r.length - 1) * 100;
             return `${_} ${y}%`;
@@ -41644,13 +41644,9 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
             className: "color-legend",
             children: [
                 " ",
-                be.jsxs("p", {
+                be.jsx("p", {
                     className: "dataset text-center",
-                    children: [
-                        a,
-                        " - ",
-                        t
-                    ]
+                    children: a
                 }),
                 " ",
                 be.jsxs("div", {
