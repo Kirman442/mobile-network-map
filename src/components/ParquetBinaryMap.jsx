@@ -7,8 +7,13 @@ import { lightingEffect } from './Effects.jsx';
 import * as ColorMaps from './ColorScaleMaps.jsx';
 import { useParquetFileUrls } from './FileUrls';
 import WorkerPool from './workers/workerPool'
+import { ensureWasmInitialized } from './workers/wasmInitializer';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LegendPanel from './RightPanel.jsx';
+import { readParquet } from 'parquet-wasm'; // Импорт для обработки в основном потоке
+import ParquetWorkerConstructor from './workers/parquetWorker?worker'; // Используем ?worker
+
+
 
 const INITIAL_VIEW_STATE = {
     longitude: 15.1,
@@ -22,12 +27,14 @@ const INITIAL_VIEW_STATE = {
 
 export default function ParquetMap() {
     const [mapStyle, setMapStyle] = useState(true)
+    const [wasmReady, setWasmReady] = useState(false); // Состояние готовности WASM
     const [mapReady, setMapReady] = useState(true); // Карта всегда готова к отображению
     const [allData, setAllData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [processedFiles, setProcessedFiles] = useState(0);
     const [totalFiles, setTotalFiles] = useState(0);
     const [error, setError] = useState(null);
+    const [errorMessage, setErrorMessage] = useState(null);
     const [elevation, setElevation] = useState(0);
     const [showHex, setShowHex] = useState(true);
     const [activeLayerKey, setActiveLayerKey] = useState('scatterplot');
@@ -50,14 +57,6 @@ export default function ParquetMap() {
     const setActiveMapStyleOnMap = useMemo(() => {
         return mapStyle ? darkMatterNolabels : darkMatterStyle
     }, [mapStyle]);
-
-    useEffect(() => {
-        // Сброс данных при изменении списка файлов
-        // if (fileUrls.length > 0) {
-        //     setAllData([{ src: new Float32Array(0), length: 0 }]);
-        //     loadingStartedRef.current = false;
-        // }
-    }, [fileUrls]);
 
     // Выбираем актуальную функцию цветовой шкалы на основе ключа для ScatterplotLayer
     const activeColorScaleFunction = useMemo(() => {
@@ -166,113 +165,250 @@ export default function ParquetMap() {
         return layersArray;
     }, [allData, elevation, activeLayerKey, activeColorScaleFunction, activeColorHexagonScaleFunction]);
 
-    // Функция для объединения данных
-    const mergeData = useCallback((existingData, newData) => {
-        if (!newData || newData.length === 0) return existingData;
-        if (existingData.length === 0) return newData;
+    // --- Функция обработки Parquet с помощью WASM (в основном потоке) ---
+    const processParquetWithWasm = useCallback(async (parquetUint8Array) => {
+        if (!wasmReady) {
+            throw new Error("Parquet-WASM module is not initialized yet.");
+        }
+        try {
+            // Не передаем второй аргумент { parallel: true }, если это вызывает проблемы
+            const arrowWasmTable = readParquet(parquetUint8Array);
+            // Конвертируем результат в IPC Stream (бинарный формат)
+            const ipcStream = arrowWasmTable.intoIPCStream(); // Это Uint8Array
+            return ipcStream; // Возвращаем Uint8Array
+        } catch (err) {
+            console.error("Main thread: Error during readParquet:", err);
+            throw err; // Перебрасываем ошибку для WorkerPool
+        }
+    }, [wasmReady]); // Зависимость от wasmReady
 
-        const totalLength = existingData.length + newData.length;
-        const combinedSrc = new Float32Array(totalLength * 6);
-
-        // Копируем существующие данные
-        combinedSrc.set(existingData.src);
-
-        // Добавляем новые данные
-        combinedSrc.set(newData.src, existingData.length * 6);
-        setTotalDataLenght(totalLength)
-
-        return { src: combinedSrc, length: totalLength };
-    }, []);
-
-    // Эффект для инициализации и загрузки данных
+    // Эффект для инициализации WASM при монтировании
     useEffect(() => {
-        if (loadingStartedRef.current) {
-            console.log("Data loading already started, skipping.");
+        isMountedRef.current = true;
+        // console.log("ParquetMap mounted. Initializing WASM...");
+        ensureWasmInitialized()
+            .then(success => {
+                if (success && isMountedRef.current) {
+                    // console.log("WASM initialized successfully in main thread.");
+                    setWasmReady(true); // Устанавливаем флаг готовности WASM
+                    setError(null);
+                } else if (isMountedRef.current) {
+                    console.error("WASM initialization failed after retries.");
+                    setError("Failed to initialize WASM module. Data cannot be loaded.");
+                    setWasmReady(false);
+                }
+            })
+            .catch(err => {
+                if (isMountedRef.current) {
+                    console.error("WASM initialization threw an error:", err);
+                    setError(`WASM Initialization Error: ${err.message}`);
+                    setWasmReady(false);
+                }
+            });
+
+        return () => {
+            isMountedRef.current = false;
+            // Завершаем работу пула воркеров при размонтировании
+            if (workerPoolRef.current) {
+                workerPoolRef.current.terminate();
+                workerPoolRef.current = null;
+                console.log("WorkerPool terminated on unmount.");
+            }
+            loadingStartedRef.current = false; // Сбрасываем флаг загрузки
+        };
+    }, []); // Пустой массив зависимостей - выполняется один раз при монтировании
+
+    // Эффект для сброса данных при изменении списка файлов
+    useEffect(() => {
+        if (fileUrls.length > 0) {
+            setAllData([]); // Сбрасываем данные полностью
+            currentDataRef.current = { src: new Float32Array(0), length: 0 };
+            setTotalDataLenght(0);
+            setProcessedFiles(0);
+            setTotalFiles(fileUrls.length);
+            setIsLoading(true); // Начинаем загрузку
+            setError(null);
+            setErrorMessage(null);
+            setMapReady(true); // Карта готова, показываем карту, но пока данные не загружены
+            loadingStartedRef.current = false; // Позволяем следующему useEffect начать загрузку
+
+            // Если пул уже существует, лучше его пересоздать или очистить очередь
+            if (workerPoolRef.current) {
+                workerPoolRef.current.terminate();
+                workerPoolRef.current = null;
+            }
+
+        } else {
+            setAllData([]);
+            currentDataRef.current = { src: new Float32Array(0), length: 0 };
+            setTotalDataLenght(0);
+            setProcessedFiles(0);
+            setTotalFiles(0);
+            setIsLoading(false); // Нет файлов - нечего грузить
+            setError(null);
+            setErrorMessage(null);
+            setMapReady(true); // Карта готова (пустая)
+            loadingStartedRef.current = false;
+            if (workerPoolRef.current) {
+                workerPoolRef.current.terminate();
+                workerPoolRef.current = null;
+            }
+        }
+    }, [fileUrls]); // Зависимость от списка файлов
+
+    // Эффект для запуска загрузки данных, когда WASM готов и есть файлы
+    useEffect(() => {
+        // Не начинаем загрузку, если WASM не готов, или уже идет загрузка, или нет файлов
+        if (!wasmReady || loadingStartedRef.current || fileUrls.length === 0) {
+            // if (!wasmReady) console.log("Data loading delayed: WASM not ready.");
+            // if (loadingStartedRef.current) console.log("Data loading delayed: Already in progress.");
+            // if (fileUrls.length === 0) console.log("Data loading skipped: No files.");
             return;
         }
 
-        async function initialize() {
-            loadingStartedRef.current = true;
-            console.log("Starting data loading process");
-
-            // Инициализируем состояние
-            setProcessedFiles(0);
-            setTotalFiles(fileUrls.length);
+        async function loadData() {
+            if (!isMountedRef.current) return; // Проверка на размонтирование
+            loadingStartedRef.current = true; // Устанавливаем флаг начала загрузки
             setIsLoading(true);
+            setProcessedFiles(0); // Сброс счетчика перед началом
+            setTotalFiles(fileUrls.length); // Устанавливаем общее количество
             setError(null);
-            setMapReady(true);
+            setErrorMessage(null);
 
-            // Создаем worker pool
-            const workerScriptUrl = new URL('./workers/parquetWorker.js', import.meta.url);
-            console.log('workerScriptUrl', workerScriptUrl)
-            workerPoolRef.current = new WorkerPool(workerScriptUrl, 10, { type: 'module' });
-            console.log('workerPoolRef.current', workerPoolRef.current)
-            // Сбрасываем текущие данные
+            // Создаем worker pool ТОЛЬКО СЕЙЧАС, передавая обработчик WASM
+            if (!workerPoolRef.current) {
+                try {
+                    workerPoolRef.current = new WorkerPool(
+                        ParquetWorkerConstructor, // Передаем конструктор
+                        10,                      // Размер пула
+                        { type: 'module' },      // Опции воркера (важно для импортов внутри воркера)
+                        processParquetWithWasm   // Обработчик WASM
+                    );
+                    // console.log("WorkerPool created successfully.");
+                } catch (poolError) {
+                    console.error("Failed to create WorkerPool:", poolError);
+                    if (isMountedRef.current) {
+                        setError(`Failed to create worker pool: ${poolError.message}`);
+                        setIsLoading(false);
+                        loadingStartedRef.current = false;
+                    }
+                    return; // Не можем продолжать без пула
+                }
+            }
+
+            // Сбрасываем текущие данные перед загрузкой новой партии
             currentDataRef.current = { src: new Float32Array(0), length: 0 };
+            setAllData([]); // Очищаем отображаемые данные
 
-            // Обрабатываем файлы
             console.time("⏱️ Full Feature Load Time");
-            await processFilesWithWorkers(fileUrls);
-            console.timeEnd("⏱️ Full Feature Load Time");
-
-            if (isMountedRef.current) {
-                setIsLoading(false);
+            try {
+                await processFilesWithWorkers(fileUrls); // Запускаем обработку
+                console.timeEnd("⏱️ Full Feature Load Time");
+                if (isMountedRef.current) {
+                    console.log(`Finished processing all files. Total records: ${currentDataRef.current.length}`);
+                    setMapReady(true); // Карта готова к отображению данных
+                }
+            } catch (processingError) {
+                console.error("Error during file processing:", processingError);
+                console.timeEnd("⏱️ Full Feature Load Time"); // Останавливаем таймер при ошибке
+                if (isMountedRef.current) {
+                    setError(`Error processing files: ${processingError.message}`);
+                    setMapReady(false); // Не можем показать карту с ошибкой
+                }
+            } finally {
+                // Устанавливаем isLoading в false только если компонент еще смонтирован
+                if (isMountedRef.current) {
+                    setIsLoading(false);
+                }
+                // Не сбрасываем loadingStartedRef.current здесь,
+                // он сбрасывается при изменении fileUrls или размонтировании
             }
         }
 
-        initialize();
-        const timer = setTimeout(() => setElevation(50), 2500);
+        loadData(); // Запускаем асинхронную функцию загрузки
 
-        // Очистка
-        return () => {
-            console.log("Component unmounted");
-            clearTimeout(timer);
-            isMountedRef.current = false;
-
-            if (workerPoolRef.current) {
-                workerPoolRef.current.terminate();
+        // Таймер для анимации (оставляем, если нужен)
+        const timer = setTimeout(() => {
+            if (isMountedRef.current) {
+                // setElevation(50); // Убедись, что setElevation определена
             }
-        };
-    }, [fileUrls]);
+        }, 2500);
 
-    // Функция для обработки файлов с использованием воркер-пула
+        // Очистка таймера при изменении зависимостей или размонтировании
+        return () => {
+            clearTimeout(timer);
+        };
+
+    }, [wasmReady, fileUrls, processParquetWithWasm]); // Зависимости: готовность WASM, список файлов, функция-обработчик
+
+    // Функция для объединения данных (без изменений)
+    const mergeData = useCallback((existingData, newData) => {
+        if (!newData || newData.length === 0) return existingData;
+        if (!existingData || existingData.length === 0) {
+            setTotalDataLenght(newData.length);
+            return newData;
+        };
+        const totalLength = existingData.length + newData.length;
+        const combinedSrc = new Float32Array(totalLength * 6);
+        combinedSrc.set(existingData.src);
+        combinedSrc.set(newData.src, existingData.length * 6);
+        setTotalDataLenght(totalLength); // Обновляем общую длину
+        return { src: combinedSrc, length: totalLength };
+    }, []); // Убираем setTotalDataLenght из зависимостей, если она не меняется
+
+    // Функция для обработки файлов с использованием воркер-пула (без изменений в логике вызова)
     const processFilesWithWorkers = useCallback(async (urls) => {
-        const BATCH_SIZE = 10;
+        if (!workerPoolRef.current) {
+            throw new Error("Worker pool is not available.");
+        }
+        const BATCH_SIZE = 8; // Размер пакета обработки файлов
+
         for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+            if (!isMountedRef.current) {
+                break; // Прерываем цикл, если компонент размонтирован
+            }
             const batchUrls = urls.slice(i, i + BATCH_SIZE);
-            const batchPromises = batchUrls.map(url => workerPoolRef.current.enqueueTask({ url }) // enqueueTask теперь вернет Promise
-                .then(result => { // Этот .then сработает при success: true
-                    if (!isMountedRef.current) return null;
-                    setProcessedFiles(prev => prev + 1);
-                    // result будет иметь структуру { success: true, data: { src, length, url } }
-                    return result.data;
-                })
-                .catch(error => { // Добавляем .catch для обработки ошибок воркера
-                    if (!isMountedRef.current) return null;
-                    setProcessedFiles(prev => prev + 1); // Считаем файл обработанным (неудачно)
-                    console.error(`Failed to process file ${url}:`, error);
-                    // Возможно, здесь нужно показать ошибку пользователю setErrorMessage(...)
-                    return null; // Возвращаем null для неудачного файла
-                })
+
+            const batchPromises = batchUrls.map(url =>
+                workerPoolRef.current.enqueueTask({ url }) // Отправляем URL в воркер
+                    .then(result => {
+                        // Этот .then сработает, когда воркер пришлет FINAL_RESULT и success: true
+                        if (!isMountedRef.current) return null;
+                        setProcessedFiles(prev => prev + 1);
+                        return result.data; // { src, length, url }
+                    })
+                    .catch(error => {
+                        // Этот .catch сработает, если промис был отклонен (ошибка в воркере или в WASM)
+                        if (!isMountedRef.current) return null;
+                        const failedUrl = error.message?.includes('URL:') ? error.message.split('URL: ')[1] : url;
+                        setProcessedFiles(prev => prev + 1); // Считаем обработанным (неудачно)
+                        setErrorMessage(prev => prev ? `${prev}\nFailed: ${failedUrl}` : `Failed: ${failedUrl}`); // Показываем ошибку
+                        return null; // Возвращаем null для неудачного файла
+                    })
             );
+
+            // Ожидаем завершения всех промисов в текущем пакете
             const batchResults = await Promise.all(batchPromises);
 
-            // Объединяем результаты текущего пакета
+            // Объединяем результаты текущего пакета, пропуская null (ошибки)
             let batchData = { src: new Float32Array(0), length: 0 };
             for (const result of batchResults) {
-                if (result) {
+                if (result) { // Только если результат не null (т.е. успешный)
                     batchData = mergeData(batchData, result);
                 }
             }
 
-            // Объединяем с общими данными
+            // Обновляем общие данные, если компонент еще смонтирован и есть новые данные
             if (batchData.length > 0 && isMountedRef.current) {
                 const newData = mergeData(currentDataRef.current, batchData);
-                currentDataRef.current = newData;
-                setAllData([newData]);
+                currentDataRef.current = newData; // Обновляем ref с текущими данными
+                setAllData([newData]); // Обновляем состояние для рендеринга DeckGL
+            } else if (isMountedRef.current) {
+                console.log("Batch completed with no new data (or only errors).");
             }
         }
-    }, [mergeData, isMountedRef, setProcessedFiles]);
+    }, [mergeData]); // Зависимости: mergeData (setErrorMessage и setProcessedFiles стабильны)
+
 
     // Функция для тултипа
     const getTooltip = useCallback(({ index }) => {
