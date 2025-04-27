@@ -26,4 +26,4 @@ dist-ssr
 *.env
 .env.local
 *.dev.*
-components/dev/
+src/components/dev/
