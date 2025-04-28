@@ -171,7 +171,6 @@ export default function ParquetMap() {
             throw new Error("Parquet-WASM module is not initialized yet.");
         }
         try {
-            // Не передаем второй аргумент { parallel: true }, если это вызывает проблемы
             const arrowWasmTable = readParquet(parquetUint8Array);
             // Конвертируем результат в IPC Stream (бинарный формат)
             const ipcStream = arrowWasmTable.intoIPCStream(); // Это Uint8Array
