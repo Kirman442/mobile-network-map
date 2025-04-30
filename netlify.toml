@@ -1,4 +1,4 @@
-# netlify.toml в корне вашего репозитория
+# netlify.toml
 
 [build]
   command = "npm run build" 
