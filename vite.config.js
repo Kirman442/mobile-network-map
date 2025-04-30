@@ -16,14 +16,12 @@ export default defineConfig({
       topLevelAwait()
     ],
     format: 'es',
-    // format: 'iife'
   },
   optimizeDeps: {
     exclude: ['parquet-wasm'],
     include: ['apache-arrow']
   },
   build: {
-    // minify: false,
     target: 'esnext',
     // target: 'es2020',
     chunkSizeWarningLimit: 1800,
