@@ -420,7 +420,7 @@ export default function ParquetMap() {
 
         return {
             html: `
-        <div class="custom-tooltip">
+        <div className="custom-tooltip">
           <b>Download:</b> ${(src[i + 3] / 1000).toFixed(2)} Mbps<br>
           <b>Upload:</b>  ${(src[i + 4] / 1000).toFixed(2)} Mbps<br>
           <b>Country Code:</b> ${src[i + 5]}
