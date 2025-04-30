@@ -8899,7 +8899,7 @@ Error generating stack: ` + c.message + `
         Q.useEffect(()=>{
             const d = n.mapLib;
             let p = !0, _;
-            return Promise.resolve(d || CS(()=>import("./maplibre-gl-DltIofSL.js").then((y)=>y.m), [])).then((y)=>{
+            return Promise.resolve(d || CS(()=>import("./maplibre-gl-DrzCDpW0.js").then((y)=>y.m), [])).then((y)=>{
                 if (!p) return;
                 if (!y) throw new Error("Invalid mapLib");
                 const v = "Map" in y ? y : y.default;
@@ -42061,11 +42061,7 @@ Failed: ${Fr}` : `Failed: ${Fr}`), null;
         ]);
         const Ze = Q.useMemo(()=>({
                 initialViewState: gB,
-                controller: {
-                    dragPan: !1,
-                    touchZoom: !0,
-                    touchRotate: !0
-                },
+                controller: !0,
                 layers: de,
                 useDevicePixels: !1
             }), [
