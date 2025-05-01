@@ -189,7 +189,6 @@ export default function ParquetMap() {
             setIsMobileView(window.innerWidth <= mobileBreakpoint);
         };
 
-        // Используем дебаунсинг для оптимизации
         let timeoutId;
         const debouncedCheckSize = () => {
             clearTimeout(timeoutId);
@@ -433,7 +432,7 @@ export default function ParquetMap() {
     }, [mergeData]); // Зависимости: mergeData (setErrorMessage и setProcessedFiles стабильны)
 
 
-    // Функция для тултипа
+    // Функция для тултипа - но не используется в текущей версии, чтобы не создавать шум
     const getTooltip = useCallback(({ index }) => {
         if (index === -1 || !allData.length) return null;
 
@@ -494,7 +493,7 @@ export default function ParquetMap() {
                         activeLayerKey={activeLayerKey}
                         setActiveLayerKey={setActiveLayerKey}
                         totalDataLenght={totalDataLenght}
-                        isMobileView={isMobileView} // Передаем состояние мобильного вида
+                        isMobileView={isMobileView}
                     />
                 </DeckGL>
             )}
