@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project demonstrates a high-performance approach to visualizing large-scale internet speed data (download speeds in kbps) across Europe directly in a web browser. By leveraging modern web technologies like **Parquet**, **Apache Arrow**, **Web Workers**, **TypedArrays**, and **Deck.gl**, we overcome the common performance bottlenecks associated with handling and rendering large geospatial datasets using traditional methods like **GeoJSON**.
+This project demonstrates a high-performance approach to visualizing large-scale internet speed data (download speeds in kbps) directly in a web browser. By leveraging modern web technologies like **Parquet**, **Apache Arrow**, **Web Workers**, **TypedArrays**, and **Deck.gl**, we overcome the common performance bottlenecks associated with handling and rendering large geospatial datasets using traditional methods like **GeoJSON**.
 
 ## Dataset
 This dataset contains performance metrics for global mobile broadband networks in the form of Mercator tiles at scale level 16 (approximately 610.8 meters by 610.8 meters at the equator). Upload and download speeds as well as latency times are recorded with the Speedtest by Ookla apps for Android and iOS and averaged for each tile. The measurements are filtered to obtain results with GPS-quality location accuracy.
