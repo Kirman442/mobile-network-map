@@ -41,6 +41,8 @@ export default function ParquetMap() {
     const [activeColorSchemeKey, setActiveColorSchemeKey] = useState('ElectricViolet'); // <-- Ключ схемы по умолчанию для Scatterplot
     const [activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey] = useState('BrightSpectrum'); // <-- Ключ схемы по умолчанию для Hexagon/Heatmap
     const [totalDataLenght, setTotalDataLenght] = useState()
+    const [isMobileView, setIsMobileView] = useState(false); // <-- Ключ для определения размеров экрана
+    const mobileBreakpoint = 768; // Определяем ширину брейкпоинта
 
 
     // Ref для отслеживания монтирования компонента
@@ -180,6 +182,28 @@ export default function ParquetMap() {
             throw err; // Перебрасываем ошибку для WorkerPool
         }
     }, [wasmReady]); // Зависимость от wasmReady
+
+    // Effect для определения размера экрана и обновления isMobileView
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobileView(window.innerWidth <= mobileBreakpoint);
+        };
+
+        // Используем дебаунсинг для оптимизации
+        let timeoutId;
+        const debouncedCheckSize = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(checkScreenSize, 200);
+        };
+
+        checkScreenSize(); // Проверяем при монтировании
+
+        window.addEventListener('resize', debouncedCheckSize);
+        return () => {
+            window.removeEventListener('resize', debouncedCheckSize);
+            clearTimeout(timeoutId);
+        };
+    }, [mobileBreakpoint]); // Пустой массив зависимостей, эффект только при монтировании/размонтировании
 
     // Эффект для инициализации WASM при монтировании
     useEffect(() => {
@@ -438,10 +462,15 @@ export default function ParquetMap() {
     // DeckGL опции
     const deckGLOptions = useMemo(() => ({
         initialViewState: INITIAL_VIEW_STATE,
-        controller: true,
+        controller: {
+            dragPan: !isMobileView,
+            touchZoom: true,
+            touchRotate: true,
+            touchPitch: false,
+        },
         layers: layers,
         useDevicePixels: false,
-    }), [layers]);
+    }), [layers, isMobileView]);
     // console.log('layers after setAllData:', layers);
     return (
         <div>
@@ -465,6 +494,7 @@ export default function ParquetMap() {
                         activeLayerKey={activeLayerKey}
                         setActiveLayerKey={setActiveLayerKey}
                         totalDataLenght={totalDataLenght}
+                        isMobileView={isMobileView} // Передаем состояние мобильного вида
                     />
                 </DeckGL>
             )}
