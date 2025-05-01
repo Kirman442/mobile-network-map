@@ -8,6 +8,7 @@ export const useParquetFileUrls = () => {
             `${BASE_URL}albania_data_zstd10.parquet`,
             `${BASE_URL}andorra_data_zstd10.parquet`,
             `${BASE_URL}austria_data_zstd10.parquet`,
+            `${BASE_URL}belarus_data_zstd10.parquet`,
             `${BASE_URL}belgium_data_zstd10.parquet`,
             `${BASE_URL}bosnia_and_herzegovina_data_zstd10.parquet`,
             `${BASE_URL}bulgaria_data_zstd10.parquet`,
@@ -36,6 +37,7 @@ export const useParquetFileUrls = () => {
             `${BASE_URL}poland_data_zstd10.parquet`,
             `${BASE_URL}portugal_data_zstd10.parquet`,
             `${BASE_URL}romania_data_zstd10.parquet`,
+            `${BASE_URL}russian_federation_data_zstd10.parquet`,
             `${BASE_URL}serbia_data_zstd10.parquet`,
             `${BASE_URL}slovakia_data_zstd10.parquet`,
             `${BASE_URL}slovenia_data_zstd10.parquet`,
@@ -43,6 +45,7 @@ export const useParquetFileUrls = () => {
             `${BASE_URL}sweden_data_zstd10.parquet`,
             `${BASE_URL}switzerland_data_zstd10.parquet`,
             `${BASE_URL}turkiye_data_zstd10.parquet`,
+            `${BASE_URL}ukraine_data_zstd10.parquet`,
             `${BASE_URL}united_kingdom_data_zstd10.parquet`
         ];
     }, []);
