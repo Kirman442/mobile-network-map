@@ -20,7 +20,7 @@ const INITIAL_VIEW_STATE = {
     latitude: 48.9,
     zoom: 4,
     maxZoom: 12,
-    minZoom: 4,
+    minZoom: 3,
     pitch: 30,
     bearing: 0,
 };
@@ -115,22 +115,23 @@ export default function ParquetMap() {
         const layersArray = [];
 
         // --- Конфигурация первого слоя ---
-        if (activeLayerKey === 'hexagon') {
-            layersArray.push(new HexagonLayer({
-                id: 'hexagon-layer',
-                ...commonProps,
-                coverage: .9,
-                gpuAggregation: true,
-                radius: 1000,
-                // elevationRange: [1, 150],
-                // elevationScale: elevation,
-                // extruded: true,
-                upperPercentile: 1000,
-                material: { ambient: 0.94, diffuse: 0.4, shininess: 32 }, //, specularColor: [51, 51, 51] 
-                // transitions: { elevationScale: 3000 },
-            }));
-            // --- Конфигурация второго слоя ---
-        } else if (activeLayerKey === 'heatmap') {
+        // if (activeLayerKey === 'hexagon') {
+        //     layersArray.push(new HexagonLayer({
+        //         id: 'hexagon-layer',
+        //         ...commonProps,
+        //         coverage: .9,
+        //         gpuAggregation: true,
+        //         radius: 1000,
+        //         // elevationRange: [1, 150],
+        //         // elevationScale: elevation,
+        //         // extruded: true,
+        //         upperPercentile: 1000,
+        //         material: { ambient: 0.94, diffuse: 0.4, shininess: 32 }, //, specularColor: [51, 51, 51] 
+        //         // transitions: { elevationScale: 3000 },
+        //     }));
+        //     // --- Конфигурация второго слоя ---
+        // } else
+        if (activeLayerKey === 'heatmap') {
             layersArray.push(new HeatmapLayer({
                 id: 'heatmap-layer',
                 ...commonProps,
