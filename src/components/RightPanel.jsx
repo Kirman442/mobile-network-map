@@ -21,7 +21,7 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
         return num.toString();
     };
 
-    const LAYER_KEYS = ['hexagon', 'heatmap', 'scatterplot'];
+    const LAYER_KEYS = ['heatmap', 'scatterplot']; // 'hexagon',
 
     const renderLayerButtons = () => (
         <div className="color-scheme-buttons">
