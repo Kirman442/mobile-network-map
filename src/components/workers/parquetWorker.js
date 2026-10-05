@@ -1,5 +1,4 @@
 import initWasm, { readParquet } from 'parquet-wasm';
-import wasmUrl from 'parquet-wasm/esm/parquet_wasm_bg.wasm?url';
 import { tableFromIPC } from 'apache-arrow';
 import { extractChunks, prepareChunk } from '../data/binaryData.js';
 
@@ -7,7 +6,7 @@ let initialization;
 self.onmessage = async ({ data: message }) => {
     const { taskId, data } = message;
     try {
-        initialization ??= initWasm(wasmUrl);
+        initialization ??= initWasm(message.wasmModule);
         try {
             await initialization;
         } catch (error) {

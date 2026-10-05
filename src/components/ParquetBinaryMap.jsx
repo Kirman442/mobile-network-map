@@ -7,6 +7,7 @@ import { SCHEME_REGISTRY, STRIDE_BYTES } from './ColorScaleMaps.js';
 import { createChunkIndex } from './data/binaryData.js';
 import { useParquetFileUrls } from './FileUrls';
 import WorkerPool from './workers/workerPool';
+import { getCompiledWasm } from './workers/compiledWasm';
 import ParquetWorker from './workers/parquetWorker?worker';
 import LegendPanel from './RightPanel.jsx';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -48,7 +49,9 @@ export default function ParquetMap() {
         let decodeMs = 0;
         async function load() {
             try {
-                pool = new WorkerPool(ParquetWorker);
+                const wasmModule = await getCompiledWasm();
+                if (cancelled) return;
+                pool = new WorkerPool(ParquetWorker, undefined, wasmModule);
                 await Promise.all(fileUrls.map(async url => {
                     try {
                         const result = await pool.enqueueTask({ url });
@@ -121,7 +124,7 @@ export default function ParquetMap() {
             },
             pickable: true,
             getRadius: 200,
-            radiusMinPixels: 1,
+            radiusMinPixels: 0,
             radiusMaxPixels: 8,
             parameters: { depthWriteEnabled: false }
         }));

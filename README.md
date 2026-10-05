@@ -42,7 +42,7 @@ Packed records contain longitude, latitude, record ID, download kbps, upload kbp
 ## Processing and memory
 
 1. A pool of 1–4 module Web Workers, sized by hardware concurrency, fetches the Parquet files.
-2. Each Worker explicitly initializes the bundled WASM asset, decompresses and decodes Parquet, and converts the result to Arrow IPC. No Parquet/WASM processing runs on the UI thread.
+2. The app fetches and compiles the WASM asset once, then shares the compiled WebAssembly.Module with the Workers. Each Worker instantiates it with its own memory, decompresses and decodes Parquet, and converts the result to Arrow IPC. Parquet decoding never runs on the UI thread. This avoids separate WASM downloads per Worker on a cold visit.
 3. Workers retain views into the existing Arrow numeric buffers rather than repacking six-field records. They validate the values and prepare four RGBA colour buffers.
 4. Unique ArrayBuffers are transferred to the UI thread, moving ownership without structured-clone copies.
 5. Each chunk remains independent. ScatterplotLayer receives interleaved binary positions (24-byte stride) and binary colours. Loaded source arrays are never repeatedly concatenated.
@@ -53,6 +53,12 @@ This is **not end-to-end zero-copy**. Parquet decompression allocates data in WA
 Final CPU data uses approximately 40 bytes per record: 24 for source values and 16 for four colour palettes, excluding IPC metadata, WASM memory, temporary decoding allocations, and GPU buffers.
 
 Download colours interpolate through 0, 50, 100, 250, 500, and 2000 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier.
+
+Point radius is 200 metres, with no minimum screen-pixel radius. An overview therefore retains small points instead of painting every record as a full-pixel disc. Point size and colour contrast are separate controls; multiplying speed values to reduce clutter would make the numeric legend misleading.
+
+## Performance comparison
+
+Compare the production site with the deploy **permalink**, not just the pull-request preview URL. Netlify's Deploy Preview URL adds its collaboration drawer and related requests; the deploy permalink does not. Keep cache settings, viewport, layer, map style and network throttling identical. Repeat runs and measure dataset/render readiness as well as navigation events: DOMContentLoaded and Load do not mean the asynchronous dataset has finished loading. Resource size is a network/decompressed-resource metric, not a measurement of application RAM.
 
 ## Failure handling
 
