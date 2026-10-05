@@ -30,18 +30,6 @@ export default defineConfig({
       polyfill: true,
     },
     assetsInlineLimit: 0, // Не инлайнить WASM как base64
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'parquet-wasm': ['parquet-wasm']
-        }
-      }
-    }
   },
-  server: {
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
-    }
-  }
+  // Transferable ArrayBuffers do not require cross-origin isolation.
 });
