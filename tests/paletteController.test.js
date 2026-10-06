@@ -46,9 +46,28 @@ test('cancellation rejects pending palette requests and prevents late messages f
     const chunk = { ...prepareChunk({ src: source, length: 1 }, { palette: 'ElectricViolet' }), id: 'a' };
     const controller = new PaletteController(NodePaletteWorker, [chunk], 'ElectricViolet');
     const waiting = assert.rejects(controller.request('MutedStone'), /cancelled/);
+    controller.start();
+    const oldWorker = controller.worker;
     controller.dispose();
     await waiting;
+    oldWorker.onmessage({ data: { type: 'colors', id: 'a', palette: 'MutedStone', colors: new Uint8Array(4) } });
     assert.equal(controller.colors(chunk, 'MutedStone'), undefined);
     assert.equal(chunk.src, source);
     await assert.rejects(controller.request('bogus'), /Unknown palette/);
+});
+
+test('background worker failure rejects requests and releases input without losing displayed colors', async () => {
+    class FailedWorker { postMessage() {} terminate() { this.terminated = true; } }
+    const chunk = { ...prepareChunk({ src: new Float32Array([1, 40, 1, 25000, 10, 4]), length: 1 }, { palette: 'ElectricViolet' }), id: 'a' };
+    let failure;
+    const controller = new PaletteController(FailedWorker, [chunk], 'ElectricViolet', error => { failure = error; });
+    const waiting = assert.rejects(controller.request('MutedStone'), /worker failed/);
+    controller.start();
+    const worker = controller.worker;
+    worker.onerror({ message: 'Palette worker failed' });
+    await waiting;
+    assert.ok(worker.terminated);
+    assert.equal(chunk.download, undefined);
+    assert.equal(controller.colors(chunk, 'ElectricViolet'), chunk.colors.ElectricViolet);
+    assert.match(failure.message, /worker failed/);
 });

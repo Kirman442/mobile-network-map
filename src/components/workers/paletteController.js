@@ -72,4 +72,3 @@ export default class PaletteController {
         for (const chunk of this.chunks) delete chunk.download;
     }
 }
-

@@ -33,4 +33,3 @@ async function pump(){
     self.postMessage({type:'done',cpuMs,maxSliceMs,elapsedMs:performance.now()-started,releasedInputBytes:inputBytes});
   }catch(e){self.postMessage({type:'error',error:e.message});}finally{running=false;}
 }
-

@@ -21,4 +21,3 @@ export default async function dataEncoding(request,context){
   // Only streaming headers change; no decompression/recompression or buffering here.
   return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
 }
-
