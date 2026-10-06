@@ -19,7 +19,7 @@ const ColorLegend = ({ schemeDefinition, activeLayerKey }) => {
                 <span className="legend-label-min">{density ? 'Lower' : min / 1000 + ' Mbps'}</span>
                 <span className="legend-label-max">{density ? 'Higher' : max / 1000 + '+ Mbps'}</span>
             </div>
-            <p className="legend-note">{density ? 'Relative to the current view. More records do not mean faster internet.' : 'Colour stops: ' + domain.map(value => value / 1000).join(' · ') + ' Mbps. Hover or tap a point for exact speeds.'}</p>
+            <p className="legend-note">{density ? 'Relative to the current view. More records do not mean faster internet.' : 'Colour stops: ' + domain.map(value => value / 1000).join(' · ') + ' Mbps. Values above ' + max / 1000 + ' Mbps share the final colour.'}</p>
         </div>
     );
 };

@@ -122,7 +122,7 @@ export default function ParquetMap() {
                     getFillColor: { value: chunk.colors[activeColorSchemeKey], size: 4, normalized: true }
                 }
             },
-            pickable: true,
+            pickable: false,
             getRadius: 200,
             radiusMinPixels: 0,
             radiusMaxPixels: 8,
@@ -130,23 +130,11 @@ export default function ParquetMap() {
         }));
     }, [chunks, chunkIndex, densityData, activeLayerKey, activeColorSchemeKey, activeColorHexagonSchemeKey]);
 
-    const getTooltip = ({ layer, index }) => {
-        if (activeLayerKey !== 'scatterplot' || index < 0 || !layer) return null;
-        const chunk = chunks.find(item => 'speed-' + item.id === layer.id);
-        if (!chunk) return null;
-        const offset = index * 6;
-        return {
-            text: 'Download: ' + (chunk.src[offset + 3] / 1000).toFixed(2) + ' Mbps\n' +
-                'Upload: ' + (chunk.src[offset + 4] / 1000).toFixed(2) + ' Mbps',
-            style: { backgroundColor: '#1a1d1e', color: '#d9d7d4', fontSize: '14px', padding: '10px' }
-        };
-    };
-
     return (
         <main className="map-app" aria-label="Mobile internet performance map">
             <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={{
                 dragPan: true, touchZoom: true, touchRotate: true, touchPitch: false
-            }} layers={layers} getTooltip={getTooltip} useDevicePixels={false}>
+            }} layers={layers} useDevicePixels={false}>
                 <Map key={basemapAttempt}
                     onError={() => setBasemapError(true)} onLoad={() => setBasemapError(false)}
                     mapStyle={BASEMAP + (mapStyle ? 'dark-matter-nolabels' : 'dark-matter') + '-gl-style/style.json'} />

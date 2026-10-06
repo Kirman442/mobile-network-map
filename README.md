@@ -19,7 +19,7 @@ The tests cover multi-batch and multi-row Arrow input, buffer ownership transfer
 
 ## What the map means
 
-- **Download speed** colours tile locations by the average download speed in Mbps. Hover or tap a point for download and upload values.
+- **Download speed** colours tile locations by the average download speed on a 0–600+ Mbps scale. Values above 600 Mbps share the final colour. Point tooltips and picking are disabled.
 - **Record density** is a relative density of loaded tile records in the current view. It does not represent speed, test counts, or coverage.
 - The counter reports loaded **tile records**, not individual Speedtest measurements.
 - Points derive from zoom-level-16 tiles (about 610.8 metres across at the equator). Circle size is a display choice, not the tile footprint.
@@ -48,13 +48,21 @@ Packed records contain longitude, latitude, record ID, download kbps, upload kbp
 5. Each chunk remains independent. ScatterplotLayer receives interleaved binary positions (24-byte stride) and binary colours. Loaded source arrays are never repeatedly concatenated.
 6. Density mode uses one logical chunk index across all files to aggregate records together. It generates position attributes through deck.gl accessors; separate country heatmaps would give incorrect overlapping densities.
 
-This is **not end-to-end zero-copy**. Parquet decompression allocates data in WASM memory. `intoIPCStream()` serializes/copies data into JavaScript memory, colours require new arrays, and WebGL uploads data to GPU memory. The zero-copy parts are the Arrow numeric views and Worker-to-UI ownership transfer. A future Arrow FFI implementation could remove IPC serialization, but WASM memory lifetime and transfer constraints need separate validation; no SharedArrayBuffer or cross-origin isolation is required here.
+This is **not end-to-end zero-copy**. Input Parquet bytes are copied from JavaScript into WASM, and decompression/decoding allocates Arrow data in WASM memory. `intoIPCStream()` serializes the Arrow data into an IPC buffer in WASM and copies that buffer into JavaScript memory. Colours require new arrays, density position attributes are generated through accessors, and WebGL uploads data to GPU memory. The zero-copy parts are the Arrow numeric views and Worker-to-UI ownership transfer. Sharing the compiled WebAssembly.Module does not share the Workers' data memory.
+
+Arrow FFI could eliminate IPC serialization. In `arrow-js-ffi`, `parseTable` copies by default; passing `copy=false` instead creates views on WASM memory. Those views require controlled memory growth and resource lifetimes, and the ordinary WASM memory buffer cannot be transferred to the UI like a standalone ArrayBuffer. FFI is not implemented in this application. An independent Arrow IPC prototype is being evaluated; its results do not describe the current production or preview architecture. No SharedArrayBuffer or cross-origin isolation is required by the current application.
 
 Final CPU data uses approximately 40 bytes per record: 24 for source values and 16 for four colour palettes, excluding IPC metadata, WASM memory, temporary decoding allocations, and GPU buffers.
 
-Download colours interpolate through 0, 50, 100, 250, 500, and 2000 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier.
+Download colours interpolate through 0, 50, 100, 200, 400, and 600 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
 
 Point radius is 200 metres, with no minimum screen-pixel radius. An overview therefore retains small points instead of painting every record as a full-pixel disc. Point size and colour contrast are separate controls; multiplying speed values to reduce clutter would make the numeric legend misleading.
+
+## Architecture description for the portfolio
+
+The map visualizes preprocessed Ookla mobile network performance records across 42 countries using React, MapLibre and deck.gl. A bounded Web Worker pool fetches Parquet files, decompresses and decodes them through parquet-wasm, reads the resulting Arrow IPC, validates numeric records, and prepares colour arrays. The UI receives transferred ArrayBuffers and renders independent chunks through deck.gl's binary scatterplot attributes, avoiding repeated concatenation and coordinate repacking. The speed legend uses actual Mbps; the heatmap represents relative tile-record density.
+
+Zero-copy applies to numeric Arrow buffer views and ownership transfer between Workers and the UI. The application still copies data across the JavaScript/WASM boundary, serializes Arrow IPC, allocates colour and density attributes, and uploads buffers to GPU memory. A separate prototype investigates direct Arrow IPC delivery; the current map continues to use Parquet and WASM.
 
 ## Performance comparison
 
