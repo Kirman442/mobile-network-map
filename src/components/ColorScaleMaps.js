@@ -1,6 +1,7 @@
 import { scaleLinear } from 'd3-scale';
 
-export const SPEED_DOMAIN_DKBPS = [1, 250000, 500000, 700000, 900000, 1500000, 2000000];
+export const SPEED_DOMAIN_DKBPS = [0, 25000, 50000, 100000, 200000, 300000];
+export const STRIDE_BYTES = 6 * Float32Array.BYTES_PER_ELEMENT;
 // export const SPEED_DOMAIN_UKBPS = [1, 150000, 300000, 500000, 700000, 8000000, 930000]
 
 // Electric Violet
@@ -88,10 +89,10 @@ export const COLOR_RANGE_AGGREGATE = {
 };
 
 
-export const avgd_ElectricViolet_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_ElectricViolet);
-export const avgd_VividGem_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_VividGem);
-export const avgd_InfernoGradient_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_InfernoGradient);
-export const avgd_MutedStone_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_MutedStone);
+export const avgd_ElectricViolet_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_ElectricViolet).clamp(true);
+export const avgd_VividGem_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_VividGem).clamp(true);
+export const avgd_InfernoGradient_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_InfernoGradient).clamp(true);
+export const avgd_MutedStone_ScaleFunction = scaleLinear().domain(SPEED_DOMAIN_DKBPS).range(COLOR_RANGE_MutedStone).clamp(true);
 
 
 export const SCHEME_REGISTRY = {

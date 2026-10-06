@@ -1,188 +1,75 @@
-// components/workers/workerPool.js
-class WorkerPool {
-    // Принимает workerConstructor вместо workerScript
-    constructor(workerConstructor, poolSize = navigator.hardwareConcurrency - 1 || 3, workerOptions = {}, wasmProcessor) {
-        this.taskQueue = [];
+export default class WorkerPool {
+    constructor(WorkerConstructor, size = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)), wasmModule) {
+        this.queue = [];
         this.workers = [];
-        this.poolSize = Math.max(2, poolSize);
-
-        // Проверяем конструктор воркера (оставляем console.error для этой критической проверки)
-        if (typeof workerConstructor !== 'function' || !workerConstructor.prototype) {
-            console.error("WorkerPool: Invalid Worker constructor provided:", workerConstructor);
-            throw new Error("WorkerPool requires a valid Worker constructor function.");
-        }
-        this.workerConstructor = workerConstructor;
-        this.workerOptions = workerOptions; // Сохраняем опции
-
-        this.taskPromises = new Map();
-        this.nextTaskId = 0;
-
-        // Проверяем обработчик WASM
-        if (typeof wasmProcessor !== 'function') {
-            throw new Error("WorkerPool requires a valid wasmProcessor function.");
-        }
-        this.wasmProcessor = wasmProcessor;
-
-        this.initialize();
-    }
-
-    initialize() {
-        for (let i = 0; i < this.poolSize; i++) {
-            const workerId = `worker-${i}`;
-            try {
-                const worker = new this.workerConstructor(this.workerOptions);
-
-                const workerObj = { worker, busy: false, id: workerId, currentTaskId: null };
-                this.workers.push(workerObj);
-
-                worker.onmessage = async (e) => {
-                    const messageData = e.data;
-                    // Проверка наличия taskId (оставляем console.error для нарушения протокола)
-                    if (!messageData || typeof messageData.taskId === 'undefined') {
-                        console.error(`WorkerPool (${workerObj.id}): Received message without taskId`, messageData);
-                        return; // Прерываем обработку, если нет ID
-                    }
-
-                    const taskId = messageData.taskId;
-                    const taskPromise = this.taskPromises.get(taskId);
-
-                    try {
-                        // Обработка запроса на WASM
-                        if (messageData.type === 'WASM_REQUEST') {
-                            if (this.wasmProcessor) {
-                                // Неявно предполагаем, что messageData.payload это ArrayBuffer или совместимый тип
-                                const result = await this.wasmProcessor(messageData.payload);
-                                // Проверяем, что результат имеет buffer для передачи (добавлено)
-                                if (!result?.buffer) {
-                                    throw new Error('WASM processor did not return an object with a transferable buffer.');
-                                }
-                                worker.postMessage({ taskId, type: 'WASM_RESPONSE', payload: result }, [result.buffer]);
-                            } else {
-                                // Ошибка, если обработчик WASM отсутствует
-                                throw new Error('WASM Processor not configured or available.');
-                            }
-                        }
-                        // Обработка успешного финального результата
-                        else if (messageData.success && messageData.type === 'FINAL_RESULT') {
-                            if (taskPromise) {
-                                // Разрешаем промис с полным сообщением (содержит data)
-                                taskPromise.resolve(messageData); // Используем resolve(messageData) чтобы получить data в основном потоке
-                                this.taskPromises.delete(taskId);
-                            } // Не логируем предупреждение об неизвестном taskId в production
-                            workerObj.busy = false;
-                            workerObj.currentTaskId = null;
-                            this.processNextTask();
-                        }
-                        // Обработка сообщения об ошибке от воркера
-                        else if (!messageData.success) {
-                            if (taskPromise) {
-                                // Отклоняем промис с сообщением об ошибке из воркера
-                                taskPromise.reject(new Error(messageData.error || `Worker task ${taskId} failed without specific error message.`));
-                                this.taskPromises.delete(taskId);
-                            } // Не логируем предупреждение об неизвестном taskId в production
-                            workerObj.busy = false;
-                            workerObj.currentTaskId = null;
-                            this.processNextTask();
-                        }
-                        // Обработка неизвестного типа сообщения
-                        else {
-                            if (taskPromise) {
-                                taskPromise.reject(new Error(`Unknown message type received from worker: ${messageData.type}`));
-                                this.taskPromises.delete(taskId);
-                            }
-                            workerObj.busy = false;
-                            workerObj.currentTaskId = null;
-                            this.processNextTask();
-                        }
-                    } catch (error) {
-                        // Логируем ошибку, возникшую при обработке сообщения ЗДЕСЬ, в WorkerPool
-                        console.error(`WorkerPool (${workerObj.id}): Error handling message for task ${taskId}:`, error);
-                        if (taskPromise) {
-                            // Отклоняем промис задачи основной ошибкой
-                            taskPromise.reject(error instanceof Error ? error : new Error(String(error)));
-                            this.taskPromises.delete(taskId);
-                        }
-                        // Освобождаем воркер после ошибки
-                        workerObj.busy = false;
-                        workerObj.currentTaskId = null;
-                        this.processNextTask();
-                    }
+        this.nextId = 0;
+        this.closed = false;
+        this.wasmModule = wasmModule;
+        try {
+            for (let i = 0; i < size; i++) {
+                const slot = { worker: new WorkerConstructor(), task: null, timer: null };
+                slot.worker.onmessage = ({ data }) => {
+                    if (!slot.task || data.taskId !== slot.task.id) return;
+                    this.finish(slot, data.success ? null : new Error(data.error), data.data);
                 };
-
-                // Обработчик фатальных ошибок воркера (onerror) - оставляем console.error
-                worker.onerror = (event) => {
-                    console.error(`WorkerPool (${workerObj.id}): Fatal Error EVENT received:`, event);
-                    let errorMessage = 'Unknown fatal error (event logged above).';
-                    if (event.message) {
-                        errorMessage = event.message;
-                    } else if (event.error) {
-                        errorMessage = event.error.message || event.error.toString();
-                        console.error(`WorkerPool (${workerObj.id}): Nested error object:`, event.error);
-                    } else if (typeof event === 'string') {
-                        errorMessage = event;
-                    }
-
-                    const currentTaskId = workerObj.currentTaskId;
-                    if (currentTaskId !== null) {
-                        const taskPromise = this.taskPromises.get(currentTaskId);
-                        if (taskPromise) {
-                            taskPromise.reject(new Error(`Fatal error in worker ${workerObj.id} while processing task ${currentTaskId}. Message: ${errorMessage}`));
-                            this.taskPromises.delete(currentTaskId);
-                        }
-                    }
-                    workerObj.busy = false;
-                    workerObj.currentTaskId = null;
-                    this.processNextTask();
+                slot.worker.onerror = (event) => {
+                    event.preventDefault();
+                    this.terminate(new Error(event.message || 'Data worker failed to start.'));
                 };
-
-            } catch (error) {
-                // Логируем критическую ошибку создания экземпляра воркера
-                console.error(`WorkerPool: Failed to instantiate worker ${workerId}:`, error);
+                slot.worker.onmessageerror = () => this.terminate(new Error('Cannot read data worker response.'));
+                this.workers.push(slot);
             }
-        }
-
-        // Проверка и логирование, если не удалось создать ни одного воркера
-        if (this.workers.length === 0 && this.poolSize > 0) {
-            console.error("WorkerPool: Failed to initialize ANY workers!");
+        } catch (error) {
+            this.terminate();
+            throw error;
         }
     }
 
-    enqueueTask(taskData) {
+    enqueueTask(data) {
+        if (this.closed) return Promise.reject(new Error('Worker pool is closed.'));
         return new Promise((resolve, reject) => {
-            const taskId = this.nextTaskId++;
-            this.taskQueue.push({ taskId: taskId, data: taskData, resolve: resolve, reject: reject });
-            this.taskPromises.set(taskId, { resolve: resolve, reject: reject });
-            this.processNextTask();
+            this.queue.push({ id: this.nextId++, data, resolve, reject });
+            this.dispatch();
         });
     }
 
-    processNextTask() {
-        if (this.taskQueue.length === 0) return;
-        const availableWorker = this.workers.find(w => !w.busy);
-        if (!availableWorker) return;
-
-        const nextTask = this.taskQueue.shift();
-        availableWorker.busy = true;
-        availableWorker.currentTaskId = nextTask.taskId;
-        // Отправляем начальное сообщение воркеру
-        availableWorker.worker.postMessage({ taskId: nextTask.taskId, type: 'INITIAL_TASK', data: nextTask.data });
-    }
-
-    terminate() {
-        this.workers.forEach(({ worker, id }) => {
+    dispatch() {
+        for (const slot of this.workers) {
+            if (slot.task || !this.queue.length) continue;
+            slot.task = this.queue.shift();
+            slot.timer = setTimeout(() => this.terminate(new Error('Data worker timed out.')), 120000);
             try {
-                // Добавим try-catch на случай ошибки при terminate
-                worker.terminate();
-            } catch (e) {
-                console.error(`WorkerPool: Error terminating worker ${id}:`, e);
+                const message = { taskId: slot.task.id, data: slot.task.data };
+                if (!slot.moduleSent) {
+                    message.wasmModule = this.wasmModule;
+                    slot.moduleSent = true;
+                }
+                slot.worker.postMessage(message);
+            } catch (error) {
+                this.terminate(error);
+                return;
             }
-        });
+        }
+    }
+
+    finish(slot, error, result) {
+        clearTimeout(slot.timer);
+        const task = slot.task;
+        slot.task = null;
+        if (error) task.reject(error);
+        else task.resolve(result);
+        this.dispatch();
+    }
+
+    terminate(error = new Error('Worker pool terminated.')) {
+        this.closed = true;
+        for (const slot of this.workers) {
+            clearTimeout(slot.timer);
+            slot.worker.terminate();
+            slot.task?.reject(error);
+        }
+        for (const task of this.queue) task.reject(error);
+        this.queue = [];
         this.workers = [];
-        this.taskQueue = [];
-        // Отклоняем все ожидающие промисы
-        this.taskPromises.forEach(p => p.reject(new Error("WorkerPool terminated")));
-        this.taskPromises.clear();
     }
 }
-
-export default WorkerPool;

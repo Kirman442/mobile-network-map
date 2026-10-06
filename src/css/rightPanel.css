@@ -13,6 +13,8 @@
     color: #d9d7d4;
     cursor: default;
     transition: all 0.3s ease;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
 }
 
 /* Структура панели */
@@ -29,6 +31,11 @@
     background: #1a1d1e;
     border-bottom: 1px solid #2a2d2e;
     cursor: pointer;
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    border: 0;
+    text-align: left;
 }
 
 .panel-title {
@@ -84,7 +91,12 @@
     right: -100%;
     /* Скрыто по умолчанию */
     transition: right 0.3s ease;
+    max-height: calc(100dvh - 100px);
 }
+
+.panel-container[hidden] { display: none; }
+button:focus-visible { outline: 2px solid #b7d8ff; outline-offset: 2px; }
+.legend-note { font-size: 11px !important; color: #b3b7bc; }
 
 .panel-container.mobile.open {
     right: 20px;
@@ -517,11 +529,10 @@ p.dataset.text-center {
     font-size: 10px;
     color: #999494;
     white-space: nowrap;
-    transform: translateX(-50%);
 }
 
 .legend-label-min {
-    left: 25px;
+    left: 0;
     text-align: left;
 }
 
