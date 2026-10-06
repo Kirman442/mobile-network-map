@@ -15,7 +15,7 @@ npm run build
 npm run preview
 ```
 
-The tests cover multi-batch and multi-row Arrow input, buffer ownership transfer, numeric colour mapping, invalid data, and worker failures.
+The tests cover all 42 copied Arrow datasets and their gzip/Brotli variants, multi-batch and multi-row input, ownership transfer, fallback/error handling, background palette parity with D3, cancellation, and worker failures.
 
 ## What the map means
 
@@ -27,12 +27,12 @@ The tests cover multi-batch and multi-row Arrow input, buffer ownership transfer
 - The source period is not documented in the prepared files. Do not interpret these as current network speeds.
 
 Ookla source: https://github.com/teamookla/ookla-open-data.
-Prepared files: https://github.com/Kirman442/deckgl/tree/main/ookla.
+This branch uses local copies of the 42 packed Arrow datasets validated in the independent prototype. The source Parquet cohort is `new_countries/optimized_data/countries/test`. The prototype folder is read-only input; its files are not changed or moved. Historical Parquet hosting: https://github.com/Kirman442/deckgl/tree/main/ookla.
 The preparation script and source period should be documented before updating the dataset.
 
 ## Data contract
 
-Each Parquet file contains a `binary_data: List<Float32>` column with schema metadata:
+Each Arrow IPC file contains a `binary_data: List<Float32>` column with schema metadata:
 
 - `stride: 6`
 - `columns: x,y,id,avg_d_kbps,avg_u_kbps,country_code`
@@ -41,18 +41,20 @@ Packed records contain longitude, latitude, record ID, download kbps, upload kbp
 
 ## Processing and memory
 
-1. A pool of 1–4 module Web Workers, sized by hardware concurrency, fetches the Parquet files.
-2. The app fetches and compiles the WASM asset once, then shares the compiled WebAssembly.Module with the Workers. Each Worker instantiates it with its own memory, decompresses and decodes Parquet, and converts the result to Arrow IPC. Parquet decoding never runs on the UI thread. This avoids separate WASM downloads per Worker on a cold visit.
-3. Workers retain views into the existing Arrow numeric buffers rather than repacking six-field records. They validate the values and prepare four RGBA colour buffers.
+1. A pool of 1–4 module Web Workers, sized by hardware concurrency, fetches same-origin Arrow IPC files. On Netlify, physical `.arrow.br` URLs use HTTP Brotli; a failed response, invalid header, or invalid dataset triggers a `.arrow.gz` retry. Local Vite dev/preview uses uncompressed `.arrow` files. IPC has no internal compression.
+2. The browser performs HTTP decompression. Workers parse the received IPC directly; no Parquet decoding, WASM runtime, or JS/WASM serialization is required.
+3. Workers retain views into the received Arrow numeric buffers, validate country codes and record counts, and prepare only the selected RGBA palette. They explicitly copy just download values (4 bytes per record) into compact buffers for the later background job.
 4. Unique ArrayBuffers are transferred to the UI thread, moving ownership without structured-clone copies.
 5. Each chunk remains independent. ScatterplotLayer receives interleaved binary positions (24-byte stride) and binary colours. Loaded source arrays are never repeatedly concatenated.
 6. Density mode uses one logical chunk index across all files to aggregate records together. It generates position attributes through deck.gl accessors; separate country heatmaps would give incorrect overlapping densities.
+7. After all loading has settled and the first full (or partial on failure) map frame has rendered, the loading workers are terminated and one dedicated worker prepares the other three palettes. Compact download buffers and resulting colours are transferred. Work is split into slices targeting 4 ms, yielding tasks so a requested palette can take priority. The old palette and its legend remain visible until all chunks for the requested palette are ready. Inactive palette arrivals do not rebuild map layers.
+8. The compact input is released and the background worker terminates on completion. Retry/unmount cancels old work and pending palette requests. Workers have error handling and time limits.
 
-This is **not end-to-end zero-copy**. Input Parquet bytes are copied from JavaScript into WASM, and decompression/decoding allocates Arrow data in WASM memory. `intoIPCStream()` serializes the Arrow data into an IPC buffer in WASM and copies that buffer into JavaScript memory. Colours require new arrays, density position attributes are generated through accessors, and WebGL uploads data to GPU memory. The zero-copy parts are the Arrow numeric views and Worker-to-UI ownership transfer. Sharing the compiled WebAssembly.Module does not share the Workers' data memory.
+This is **not end-to-end zero-copy**. The numeric path is scoped: received, decompressed IPC ArrayBuffer → Float32 views → Worker/UI ownership transfer → binary scatterplot position attributes, without repacking or cloning the source numeric array. HTTP decompression, offline data preparation, the explicit compact download copy, new colour arrays, density accessor attributes, and GPU uploads are outside this scope. Physical copies inside the browser/OS are not traced.
 
-Arrow FFI could eliminate IPC serialization. In `arrow-js-ffi`, `parseTable` copies by default; passing `copy=false` instead creates views on WASM memory. Those views require controlled memory growth and resource lifetimes, and the ordinary WASM memory buffer cannot be transferred to the UI like a standalone ArrayBuffer. FFI is not implemented in this application. An independent Arrow IPC prototype is being evaluated; its results do not describe the current production or preview architecture. No SharedArrayBuffer or cross-origin isolation is required by the current application.
+GeoArrow, FFI, SharedArrayBuffer and cross-origin isolation are not required. The current `main` production version remains unchanged until this branch is approved and merged.
 
-Final CPU data uses approximately 40 bytes per record: 24 for source values and 16 for four colour palettes, excluding IPC metadata, WASM memory, temporary decoding allocations, and GPU buffers.
+For 1,235,099 records, numeric payload is 29.64 MB, one palette 4.94 MB and four palettes 19.76 MB. The compact background input temporarily adds 4.94 MB. After all palettes are prepared, final numeric+colour payload remains 49.40 MB (40 bytes per record); background preparation reduces work before the first frame, not final cache size. IPC metadata/padding, JS objects, browser decoding and GPU buffers are additional. These figures are not peak RSS.
 
 Download colours interpolate through 0, 25, 50, 100, 200, and 300 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
 
@@ -62,9 +64,9 @@ Point radius is 200 metres, with no minimum screen-pixel radius. An overview the
 
 ## Architecture description for the portfolio
 
-The map visualizes preprocessed Ookla mobile network performance records across 42 countries using React, MapLibre and deck.gl. A bounded Web Worker pool fetches Parquet files, decompresses and decodes them through parquet-wasm, reads the resulting Arrow IPC, validates numeric records, and prepares colour arrays. The UI receives transferred ArrayBuffers and renders independent chunks through deck.gl's binary scatterplot attributes, avoiding repeated concatenation and coordinate repacking. The speed legend uses actual Mbps; the heatmap represents relative tile-record density.
+The map visualizes preprocessed Ookla mobile network performance records across 42 countries using React, MapLibre and deck.gl. A bounded Web Worker pool fetches Arrow IPC delivered with HTTP Brotli or gzip, validates numeric records and prepares the selected palette. The UI receives transferred ArrayBuffers and renders independent chunks through binary scatterplot attributes. After the full map frame, a dedicated worker computes the remaining palettes with priority for user requests. The speed legend uses actual Mbps; the heatmap represents relative tile-record density.
 
-Zero-copy applies to numeric Arrow buffer views and ownership transfer between Workers and the UI. The application still copies data across the JavaScript/WASM boundary, serializes Arrow IPC, allocates colour and density attributes, and uploads buffers to GPU memory. A separate prototype investigates direct Arrow IPC delivery; the current map continues to use Parquet and WASM.
+The numeric data path uses Arrow views and ownership transfer without additional source-array copies or coordinate repacking. Background palettes intentionally copy a compact download column. Decompression, colour allocation, density attributes and GPU upload remain outside the no-copy claim.
 
 ## Performance comparison
 
@@ -89,3 +91,5 @@ Use a feature branch and pull request, validate its Netlify preview, then merge 
 `npm run deploy` is a legacy GitHub Pages command, not the Netlify deployment command. The legacy workflow under `.github_res/workflows` is inactive. `src/components/dev` contains local ignored experiments and is not part of the application.
 
 Hashed assets have immutable caching. Netlify headers assign the correct JS/CSS/WASM content types; no blanket WASM content type is applied to all assets.
+
+Netlify builds set `VITE_ARROW_TRANSPORT=suffix`. A streaming Edge Function sets the Arrow MIME and Content-Encoding for `.arrow.br`/`.arrow.gz` responses; ordinary custom headers alone are insufficient for this encoding contract. Data responses use `no-store, no-transform` for the comparison phase. Verify actual encoded bytes and browser decoding on the Deploy Preview, rather than assuming a successful build proves CDN behavior. A local production build with this variable requires equivalent encoded HTTP serving; normal `npm run preview` uses identity Arrow.

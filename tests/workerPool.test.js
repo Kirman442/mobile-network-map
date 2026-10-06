@@ -37,15 +37,15 @@ test('fatal worker errors reject active and queued work instead of hanging', asy
     await assert.rejects(pool.enqueueTask({}), /closed/);
 });
 
-test('compiled WASM is sent once to each worker rather than with every file', async () => {
+test('reused workers receive each country task with its selected palette', async () => {
     FakeWorker.instances = [];
-    const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
-    const pool = new WorkerPool(FakeWorker, 2, module);
-    const results = Promise.all([pool.enqueueTask({}), pool.enqueueTask({}), pool.enqueueTask({})]);
-    assert.equal(FakeWorker.instances[0].message.wasmModule, module);
-    assert.equal(FakeWorker.instances[1].message.wasmModule, module);
+    const pool = new WorkerPool(FakeWorker, 2);
+    const tasks = ['a', 'b', 'c'].map(key => ({ country: { key }, palette: 'MutedStone' }));
+    const results = Promise.all(tasks.map(task => pool.enqueueTask(task)));
+    assert.deepEqual(FakeWorker.instances[0].message.data, tasks[0]);
+    assert.deepEqual(FakeWorker.instances[1].message.data, tasks[1]);
     FakeWorker.instances[0].reply(true, {});
-    assert.equal(FakeWorker.instances[0].message.wasmModule, undefined);
+    assert.deepEqual(FakeWorker.instances[0].message.data, tasks[2]);
     FakeWorker.instances[0].reply(true, {});
     FakeWorker.instances[1].reply(true, {});
     await results;

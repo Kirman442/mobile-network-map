@@ -1,14 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Map } from '@vis.gl/react-maplibre';
 import DeckGL from '@deck.gl/react';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { SCHEME_REGISTRY, STRIDE_BYTES } from './ColorScaleMaps.js';
 import { createChunkIndex } from './data/binaryData.js';
-import { useParquetFileUrls } from './FileUrls';
+import { COUNTRIES } from './data/countries.js';
 import WorkerPool from './workers/workerPool';
-import { getCompiledWasm } from './workers/compiledWasm';
-import ParquetWorker from './workers/parquetWorker?worker';
+import ArrowWorker from './workers/arrowWorker?worker';
+import PaletteWorker from './workers/paletteWorker?worker';
+import PaletteController from './workers/paletteController.js';
 import LegendPanel from './RightPanel.jsx';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -19,7 +20,7 @@ const INITIAL_VIEW_STATE = {
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/';
 const numberFormatter = new Intl.NumberFormat('en');
 
-export default function ParquetMap() {
+export default function ArrowMap() {
     const [mapStyle, setMapStyle] = useState(true);
     const [chunks, setChunks] = useState([]);
     const [progress, setProgress] = useState({ completed: 0, failed: [], loading: true });
@@ -30,7 +31,30 @@ export default function ParquetMap() {
     const [activeColorSchemeKey, setActiveColorSchemeKey] = useState('ElectricViolet');
     const [activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey] = useState('BrightSpectrum');
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
-    const fileUrls = useParquetFileUrls();
+    const [pendingPalette, setPendingPalette] = useState(null);
+    const [paletteError, setPaletteError] = useState(null);
+    const paletteController = useRef(null);
+    const requestedPalette = useRef('ElectricViolet');
+    const requestGeneration = useRef(0);
+    const dataReady = useRef(false);
+
+    const requestPalette = useCallback(key => {
+        requestedPalette.current = key;
+        const generation = ++requestGeneration.current;
+        setPendingPalette(key);
+        setPaletteError(null);
+        const controller = paletteController.current;
+        if (!controller || !dataReady.current) return;
+        controller.request(key).then(() => {
+            if (generation !== requestGeneration.current) return;
+            setActiveColorSchemeKey(key);
+            setPendingPalette(null);
+        }).catch(error => {
+            if (generation !== requestGeneration.current) return;
+            setPendingPalette(null);
+            setPaletteError(error.message);
+        });
+    }, []);
 
     useEffect(() => {
         const query = window.matchMedia('(max-width: 768px)');
@@ -42,40 +66,69 @@ export default function ParquetMap() {
     useEffect(() => {
         let cancelled = false;
         let pool;
+        let frame;
+        let pendingChunks = [];
+        const loadedChunks = [];
+        const selected = requestedPalette.current;
+        requestGeneration.current = requestGeneration.current + 1;
+        paletteController.current?.dispose();
+        paletteController.current = null;
+        dataReady.current = false;
+        setActiveColorSchemeKey(selected);
+        setPendingPalette(null);
+        setPaletteError(null);
         setChunks([]);
         setProgress({ completed: 0, failed: [], loading: true });
         const started = performance.now();
         let loadedRecords = 0;
         let decodeMs = 0;
+        function flushChunks() {
+            if (frame) cancelAnimationFrame(frame);
+            frame = null;
+            const batch = pendingChunks;
+            pendingChunks = [];
+            if (!cancelled && batch.length) setChunks(previous => [...previous, ...batch]);
+        }
         async function load() {
             try {
-                const wasmModule = await getCompiledWasm();
-                if (cancelled) return;
-                pool = new WorkerPool(ParquetWorker, undefined, wasmModule);
-                await Promise.all(fileUrls.map(async url => {
+                pool = new WorkerPool(ArrowWorker);
+                await Promise.all(COUNTRIES.map(async country => {
                     try {
-                        const result = await pool.enqueueTask({ url });
+                        const result = await pool.enqueueTask({ country, palette: selected });
                         if (cancelled) return;
                         loadedRecords += result.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
                         decodeMs += result.decodeMs;
-                        setChunks(previous => [...previous, ...result.chunks.map((chunk, index) => ({
-                            ...chunk, id: url + ':' + index
-                        }))]);
+                        const additions = result.chunks.map((chunk, index) => ({ ...chunk, id: country.key + ':' + index }));
+                        loadedChunks.push(...additions);
+                        pendingChunks.push(...additions);
+                        frame ??= requestAnimationFrame(flushChunks);
                         setProgress(previous => ({ ...previous, completed: previous.completed + 1 }));
                     } catch (error) {
                         if (cancelled) return;
                         setProgress(previous => ({
                             ...previous, completed: previous.completed + 1,
-                            failed: [...previous.failed, { file: url.split('/').pop(), message: error.message }]
+                            failed: [...previous.failed, { file: country.key, message: error.message }]
                         }));
                     }
                 }));
                 if (!cancelled) {
-                    console.info('Mobile map loading complete', {
-                        files: fileUrls.length, records: loadedRecords,
+                    if (loadedChunks.length) {
+                        paletteController.current = new PaletteController(PaletteWorker, loadedChunks, selected, error => {
+                            if (!cancelled) { setPaletteError(error.message); setPendingPalette(null); }
+                        }, result => {
+                            if (!cancelled) console.info('Background palettes complete', JSON.stringify({
+                                elapsedMs: Math.round(result.elapsedMs), workerProcessingMs: Math.round(result.cpuMs),
+                                releasedInputBytes: result.releasedInputBytes
+                            }));
+                        });
+                        dataReady.current = true;
+                        if (requestedPalette.current !== selected) requestPalette(requestedPalette.current);
+                    }
+                    console.info('Mobile map loading complete', JSON.stringify({
+                        files: COUNTRIES.length, records: loadedRecords,
                         elapsedMs: Math.round(performance.now() - started),
-                        workerDecodeMs: Math.round(decodeMs)
-                    });
+                        workerProcessingMs: Math.round(decodeMs)
+                    }));
                 }
             } catch (error) {
                 if (!cancelled) setProgress(previous => ({
@@ -83,12 +136,21 @@ export default function ParquetMap() {
                 }));
             } finally {
                 pool?.terminate();
+                flushChunks();
                 if (!cancelled) setProgress(previous => ({ ...previous, loading: false }));
             }
         }
         load();
-        return () => { cancelled = true; pool?.terminate(); };
-    }, [fileUrls, attempt]);
+        return () => {
+            cancelled = true;
+            if (frame) cancelAnimationFrame(frame);
+            pool?.terminate();
+            requestGeneration.current = requestGeneration.current + 1;
+            paletteController.current?.dispose();
+            paletteController.current = null;
+            dataReady.current = false;
+        };
+    }, [attempt, requestPalette]);
 
     const chunkIndex = useMemo(() => createChunkIndex(chunks), [chunks]);
     const densityData = useMemo(() => ({ length: chunkIndex.length }), [chunkIndex]);
@@ -120,7 +182,7 @@ export default function ParquetMap() {
                 length: chunk.length,
                 attributes: {
                     getPosition: { value: chunk.src, size: 2, stride: STRIDE_BYTES },
-                    getFillColor: { value: chunk.colors[activeColorSchemeKey], size: 4, normalized: true }
+                    getFillColor: { value: paletteController.current?.colors(chunk, activeColorSchemeKey) || chunk.colors[activeColorSchemeKey], size: 4, normalized: true }
                 }
             },
             pickable: false,
@@ -135,7 +197,11 @@ export default function ParquetMap() {
         <main className="map-app" aria-label="Mobile internet performance map">
             <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={{
                 dragPan: true, touchZoom: true, touchRotate: true, touchPitch: false
-            }} layers={layers} useDevicePixels={false}>
+            }} layers={layers} useDevicePixels={false} onAfterRender={() => {
+                // Start only after the full (or partial, on file failure) map has rendered.
+                const controller = paletteController.current;
+                if (!progress.loading && chunks.length && controller?.chunks.length === chunks.length) controller.start();
+            }}>
                 <Map key={basemapAttempt}
                     onError={() => setBasemapError(true)} onLoad={() => setBasemapError(false)}
                     mapStyle={BASEMAP + (mapStyle ? 'dark-matter-nolabels' : 'dark-matter') + '-gl-style/style.json'} />
@@ -145,15 +211,21 @@ export default function ParquetMap() {
                 mapStyle={mapStyle} setMapStyle={setMapStyle}
                 activeColorHexagonSchemeKey={activeColorHexagonSchemeKey}
                 setActiveColorHexagonSchemeKey={setActiveColorHexagonSchemeKey}
-                activeColorSchemeKey={activeColorSchemeKey} setActiveColorSchemeKey={setActiveColorSchemeKey}
+                activeColorSchemeKey={activeColorSchemeKey} setActiveColorSchemeKey={requestPalette}
                 activeLayerKey={activeLayerKey} setActiveLayerKey={setActiveLayerKey}
                 totalDataLenght={chunkIndex.length} isMobileView={isMobileView}
             />
             {progress.loading && <div className="load-status" role="status">
-                Processed {progress.completed} of {fileUrls.length} files
+                Processed {progress.completed} of {COUNTRIES.length} files
                 {progress.failed.length > 0 && ' · ' + progress.failed.length + ' failed'}
+                {pendingPalette && ' · Palette change queued'}
             </div>}
-            {(progress.failed.length > 0 || basemapError) && <div className="load-error" role="alert">
+            {pendingPalette && !progress.loading && <div className="load-status" role="status">
+                Preparing {SCHEME_REGISTRY[pendingPalette].displayName} palette…
+            </div>}
+            {(progress.failed.length > 0 || basemapError || paletteError) && <div className="load-error" role="alert">
+                {paletteError && <div><strong>Palette preparation unavailable</strong><p>{paletteError}</p>
+                    <button className="legend-button" onClick={() => setAttempt(value => value + 1)}>Retry loading</button></div>}
                 {basemapError && <div><strong>Basemap unavailable</strong><p>The data layer is still available.</p>
                     <button className="legend-button" onClick={() => {
                         setBasemapError(false); setBasemapAttempt(value => value + 1);

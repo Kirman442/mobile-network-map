@@ -1,10 +1,9 @@
 export default class WorkerPool {
-    constructor(WorkerConstructor, size = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)), wasmModule) {
+    constructor(WorkerConstructor, size = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1))) {
         this.queue = [];
         this.workers = [];
         this.nextId = 0;
         this.closed = false;
-        this.wasmModule = wasmModule;
         try {
             for (let i = 0; i < size; i++) {
                 const slot = { worker: new WorkerConstructor(), task: null, timer: null };
@@ -39,12 +38,7 @@ export default class WorkerPool {
             slot.task = this.queue.shift();
             slot.timer = setTimeout(() => this.terminate(new Error('Data worker timed out.')), 120000);
             try {
-                const message = { taskId: slot.task.id, data: slot.task.data };
-                if (!slot.moduleSent) {
-                    message.wasmModule = this.wasmModule;
-                    slot.moduleSent = true;
-                }
-                slot.worker.postMessage(message);
+                slot.worker.postMessage({ taskId: slot.task.id, data: slot.task.data });
             } catch (error) {
                 this.terminate(error);
                 return;

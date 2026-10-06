@@ -1,6 +1,7 @@
 import { SCHEME_REGISTRY } from '../ColorScaleMaps.js';
 
 export const STRIDE = 6;
+export const PALETTES = Object.keys(SCHEME_REGISTRY).filter(key => SCHEME_REGISTRY[key].layerType === 'scatterplot');
 const EXPECTED_COLUMNS = 'x,y,id,avg_d_kbps,avg_u_kbps,country_code';
 
 // Keep Arrow buffer views, including all batches and list rows.
@@ -30,9 +31,11 @@ export function extractChunks(table) {
     return chunks;
 }
 
-export function prepareChunk(chunk) {
+export function prepareChunk(chunk, { palette, countryCode } = {}) {
     const colors = {};
-    const schemes = Object.entries(SCHEME_REGISTRY).filter(([, scheme]) => scheme.layerType === 'scatterplot');
+    if (palette && !PALETTES.includes(palette)) throw new Error('Unknown palette.');
+    const schemes = (palette ? [palette] : PALETTES).map(key => [key, SCHEME_REGISTRY[key]]);
+    const download = palette ? new Float32Array(chunk.length) : undefined;
     for (const [key] of schemes) colors[key] = new Uint8Array(chunk.length * 4);
     for (let index = 0; index < chunk.length; index++) {
         const start = index * STRIDE;
@@ -40,14 +43,18 @@ export function prepareChunk(chunk) {
         const latitude = chunk.src[start + 1];
         const speed = chunk.src[start + 3];
         const upload = chunk.src[start + 4];
+        if (countryCode !== undefined && chunk.src[start + 5] !== countryCode) {
+            throw new Error('Unexpected country code in dataset.');
+        }
         if (!Number.isFinite(longitude) || Math.abs(longitude) > 180 ||
             !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
             !Number.isFinite(speed) || speed < 0 || !Number.isFinite(upload) || upload < 0) {
             throw new Error('Invalid coordinates or speed in dataset.');
         }
         for (const [key, scheme] of schemes) colors[key].set(scheme.scaleFunction(speed), index * 4);
+        if (download) download[index] = speed;
     }
-    return { ...chunk, colors };
+    return { ...chunk, colors, ...(download ? { download } : {}) };
 }
 
 // One logical dataset for density aggregation, without concatenating source arrays.
