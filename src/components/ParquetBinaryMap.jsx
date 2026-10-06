@@ -109,8 +109,9 @@ export default function ParquetMap() {
                 aggregation: 'SUM',
                 colorRange: SCHEME_REGISTRY[activeColorHexagonSchemeKey].colorRange,
                 radiusPixels: 12,
-                intensity: 1,
-                threshold: 0.05
+                intensity: 0.6,
+                threshold: 0.15,
+                opacity: 0.7
             })];
         }
         return chunks.map(chunk => new ScatterplotLayer({

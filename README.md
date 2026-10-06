@@ -19,7 +19,7 @@ The tests cover multi-batch and multi-row Arrow input, buffer ownership transfer
 
 ## What the map means
 
-- **Download speed** colours tile locations by the average download speed on a 0–600+ Mbps scale. Values above 600 Mbps share the final colour. Point tooltips and picking are disabled.
+- **Download speed** colours tile locations by the average download speed on a 0–300+ Mbps scale. Values above 300 Mbps share the final colour. Point tooltips and picking are disabled.
 - **Record density** is a relative density of loaded tile records in the current view. It does not represent speed, test counts, or coverage.
 - The counter reports loaded **tile records**, not individual Speedtest measurements.
 - Points derive from zoom-level-16 tiles (about 610.8 metres across at the equator). Circle size is a display choice, not the tile footprint.
@@ -54,7 +54,9 @@ Arrow FFI could eliminate IPC serialization. In `arrow-js-ffi`, `parseTable` cop
 
 Final CPU data uses approximately 40 bytes per record: 24 for source values and 16 for four colour palettes, excluding IPC metadata, WASM memory, temporary decoding allocations, and GPU buffers.
 
-Download colours interpolate through 0, 50, 100, 200, 400, and 600 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
+Download colours interpolate through 0, 25, 50, 100, 200, and 300 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
+
+Record density retains unit weights, SUM aggregation and a 12-pixel kernel radius. Its visual presentation uses intensity 0.6, a fading threshold of 0.15 and opacity 0.7 to reduce broad opaque colour patches while retaining denser areas. These settings affect display, not the number or weight of records; colours remain relative to the current view.
 
 Point radius is 200 metres, with no minimum screen-pixel radius. An overview therefore retains small points instead of painting every record as a full-pixel disc. Point size and colour contrast are separate controls; multiplying speed values to reduce clutter would make the numeric legend misleading.
 

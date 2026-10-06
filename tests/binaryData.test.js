@@ -39,7 +39,7 @@ test('palette colours use actual kbps, every stop, and clamp outliers', () => {
         });
         assert.deepEqual(scheme.scaleFunction(9000000), scheme.colorRange.at(-1));
     }
-    const chunk = extractChunks(makeTable([[1, 40, 10, 50000, 10000, 2]]))[0];
+    const chunk = extractChunks(makeTable([[1, 40, 10, 25000, 10000, 2]]))[0];
     const result = prepareChunk(chunk);
     assert.equal(result.src, chunk.src);
     assert.deepEqual(Array.from(result.colors.ElectricViolet), SCHEME_REGISTRY.ElectricViolet.colorRange[1]);
