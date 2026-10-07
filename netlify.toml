@@ -4,6 +4,18 @@
   command = "npm run build" 
   publish = "dist"        
 
+[build.environment]
+  VITE_ARROW_TRANSPORT = "suffix"
+
+[[edge_functions]]
+  function = "data-encoding"
+  path = "/data/*"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "no-store, no-transform"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

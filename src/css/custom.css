@@ -13,6 +13,33 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+.map-app { position: relative; width: 100%; height: 100%; }
+.load-status, .load-error {
+    position: absolute;
+    z-index: 102;
+    padding: 10px 14px;
+    color: #d9d7d4;
+    background: #1a1d1ef2;
+    font-size: 13px;
+    max-width: min(480px, calc(100vw - 48px));
+}
+.load-status { top: 20px; left: 20px; }
+.load-error { bottom: 20px; left: 20px; border: 1px solid #ba7856; max-height: 30vh; overflow: auto; }
+.load-error p { margin: 6px 0; }
+.load-error li { overflow-wrap: anywhere; }
+.load-error button { margin-top: 10px; }
+@media (max-width: 768px) {
+    .load-status { top: 10px; left: 10px; max-width: calc(100vw - 110px); }
+    .load-error { bottom: 10px; left: 10px; }
+}
+
 .rotate-shift {
     font-family: Arial, sans-serif;
     position: absolute;

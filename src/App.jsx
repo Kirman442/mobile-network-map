@@ -1,6 +1,6 @@
-import ParquetMap from './components/ParquetBinaryMap'
+import ArrowMap from './components/ArrowBinaryMap'
 
 function App() {
-  return <ParquetMap />;
+  return <ArrowMap />;
 }
 export default App
