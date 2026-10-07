@@ -52,7 +52,7 @@ Packed records contain longitude, latitude, record ID, download kbps, upload kbp
 
 This is **not end-to-end zero-copy**. The numeric path is scoped: received, decompressed IPC ArrayBuffer → Float32 views → Worker/UI ownership transfer → binary scatterplot position attributes, without repacking or cloning the source numeric array. HTTP decompression, offline data preparation, the explicit compact download copy, new colour arrays, density accessor attributes, and GPU uploads are outside this scope. Physical copies inside the browser/OS are not traced.
 
-GeoArrow, FFI, SharedArrayBuffer and cross-origin isolation are not required. The current `main` production version remains unchanged until this branch is approved and merged.
+GeoArrow, FFI, SharedArrayBuffer and cross-origin isolation are not required. The `main` branch preserves the original Parquet implementation; the Arrow map is released from the separate `production` branch.
 
 For 1,235,099 records, numeric payload is 29.64 MB, one palette 4.94 MB and four palettes 19.76 MB. The compact background input temporarily adds 4.94 MB. After all palettes are prepared, final numeric+colour payload remains 49.40 MB (40 bytes per record); background preparation reduces work before the first frame, not final cache size. IPC metadata/padding, JS objects, browser decoding and GPU buffers are additional. These figures are not peak RSS.
 
@@ -80,13 +80,13 @@ Progress counts processed files, including failures. Failed files remain visible
 
 Netlify is linked to `Kirman442/mobile-network-map`:
 
-- production branch: `main`;
-- pull requests against `main`: Deploy Preview;
+- production branch: `production`;
+- pull requests against `production`: Deploy Preview;
 - other branches are not deployed independently;
 - build command: `npm run build`;
 - publish directory: `dist`.
 
-Use a feature branch and pull request, validate its Netlify preview, then merge only after approval. Pushing/merging to `main` triggers production deployment.
+Use a feature branch and pull request against `production`, validate its Netlify preview, then merge only after approval. Pushing/merging to `production` triggers production deployment. Preserve `main` as the original implementation; it is not the deployment branch.
 
 `npm run deploy` is a legacy GitHub Pages command, not the Netlify deployment command. The legacy workflow under `.github_res/workflows` is inactive. `src/components/dev` contains local ignored experiments and is not part of the application.
 

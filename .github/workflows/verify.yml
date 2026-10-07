@@ -2,9 +2,9 @@ name: Verify
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production]
   push:
-    branches: [main, 'codex/**']
+    branches: [main, production, 'codex/**']
 
 permissions:
   contents: read
