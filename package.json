@@ -10,27 +10,21 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "wasm-init": "wasm-init",
-    "compile": "wasm-compile"
+    "test": "node --test tests/*.test.js",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.1.11",
     "@deck.gl/core": "^9.1.11",
     "@deck.gl/layers": "^9.1.11",
     "@deck.gl/react": "^9.1.11",
-    "@rollup/plugin-wasm": "^6.2.2",
     "@vis.gl/react-maplibre": "^8.0.4",
     "apache-arrow": "^19.0.1",
     "d3-scale": "^4.0.2",
     "maplibre-gl": "^5.3.1",
-    "parquet-wasm": "^0.6.1",
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "vite-plugin-top-level-await": "^1.5.0",
-    "vite-plugin-wasm": "^3.4.1",
-    "wasm-init": "^0.0.38"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

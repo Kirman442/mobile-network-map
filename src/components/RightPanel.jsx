@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../css/rightPanel.css';
-import { SCHEME_REGISTRY } from './ColorScaleMaps';
+import { SCHEME_REGISTRY } from './ColorScaleMaps.js';
 import ColorLegend from './ColorLegend';
 
-const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveColorSchemeKey, activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey, activeLayerKey, setActiveLayerKey, totalDataLenght, isMobileView }) => {
+const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveColorSchemeKey, activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey, activeLayerKey, setActiveLayerKey, totalDataLenght, isMobileView, tooltipEnabled, setTooltipEnabled }) => {
     const [isInfoExpanded, setIsInfoExpanded] = useState(true);
     const [isDatasetExpanded, setIsDatasetExpanded] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,10 +29,11 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                 <button
                     key={key}
                     className={`legend-button ${activeLayerKey === key ? 'active' : ''}`}
+                    aria-pressed={activeLayerKey === key}
                     onClick={() => handleLayerChange(key)} // Используем функцию handleLayerChange
                 >
                     {/* Отображаемое имя слоя */}
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {key === 'heatmap' ? 'Record density' : 'Download speed'}
                 </button>
             ))}
         </div>
@@ -69,9 +70,9 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
 
     // Мобильная кнопка меню
     const MobileMenuButton = () => (
-        <div className="mobile-menu-button" onClick={toggleMobileMenu}>
+        <button className="mobile-menu-button" onClick={toggleMobileMenu} aria-label={isMobileMenuOpen ? 'Close map controls' : 'Open map controls'} aria-expanded={isMobileMenuOpen} aria-controls="map-controls">
             {isMobileMenuOpen ? '×' : '☰'}
-        </div>
+        </button>
     );
 
     // --- Логика кнопок выбора цветовых схем ---
@@ -107,7 +108,8 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                     return (
                         <button
                             key={schemeKey}
-                            className={`legend-button ${currentActiveSchemeKey === schemeKey ? 'active' : ''}`} // Подсветка активной кнопки схемы
+                            className={`legend-button ${currentActiveSchemeKey === schemeKey ? 'active' : ''}`}
+                            aria-pressed={currentActiveSchemeKey === schemeKey}
                             onClick={() => activeSchemeSetter(schemeKey)} // Вызываем актуальный сеттер с ключом схемы
                         >
                             {schemeDef.displayName}
@@ -140,22 +142,23 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                 <div
                     className={`mobile-overlay ${isMobileMenuOpen ? 'visible' : ''}`}
                     onClick={toggleMobileMenu}
+                    aria-hidden="true"
                 />
             )}
-            <div className={`panel-container ${isMobileView ? 'mobile' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
+            <div id="map-controls" hidden={isMobileView && !isMobileMenuOpen} className={`panel-container ${isMobileView ? 'mobile' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 {/* Информационный блок */}
                 <div className="panel-block">
-                    <div className="panel-header" onClick={toggleInfoPanel}>
-                        <div className="panel-title">Internet speed map</div>
-                        <div className="panel-expander">
+                    <button className="panel-header" onClick={toggleInfoPanel} aria-expanded={isInfoExpanded}>
+                        <span className="panel-title">Internet speed map</span>
+                        <span className="panel-expander">
                             {isInfoExpanded ? '×' : 'i'}
-                        </div>
-                    </div>
+                        </span>
+                    </button>
 
                     {isInfoExpanded && (
                         <div className="panel-content">
                             <div className="stat-item">
-                                <div className="stat-label">Total number of measurements </div>
+                                <div className="stat-label">Loaded tile records</div>
                                 <div className="stat-value">{formatNumber(totalDataLenght)}</div>
                             </div>
                             <div className="description-block">
@@ -169,6 +172,7 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                                 <ColorLegend
                                     schemeDefinition={activeSchemeDefinition}
                                     activeLayerKey={activeLayerKey} // Передаем активный слой, чтобы Легенда могла формировать заголовок
+                                    tooltipEnabled={tooltipEnabled} setTooltipEnabled={setTooltipEnabled}
                                 />
                             </div>
                         </div>
@@ -177,22 +181,23 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
 
                 {/* Dataset блок */}
                 <div className="panel-block">
-                    <div className="panel-header" onClick={toggleDatasetPanel}>
-                        <div className="panel-title">Information</div>
-                        <div className="panel-expander">
+                    <button className="panel-header" onClick={toggleDatasetPanel} aria-expanded={isDatasetExpanded}>
+                        <span className="panel-title">Information</span>
+                        <span className="panel-expander">
                             {isDatasetExpanded ? '×' : 'i'}
-                        </div>
-                    </div>
+                        </span>
+                    </button>
 
                     {isDatasetExpanded && (
                         <div className="panel-content">
                             <div className="description-block">
                                 <h4>About the dataset</h4>
                                 <p className="dataset">
-                                    This dataset provides global mobile network performance metrics in zoom level 16 web mercator tiles (approximately 610.8 meters by 610.8 meters at the equator). Data is provided as Apache Parquet with geometries represented in Well Known Text (WKT) projected in EPSG:4326. Download speed, upload speed, and latency are collected via the Speedtest by Ookla applications for Android and iOS and averaged for each tile. Measurements are filtered to results containing GPS-quality location accuracy.
+                                    This map loads preprocessed Ookla mobile performance records for 42 countries. Points represent zoom-level-16 tile locations (about 610.8 metres across at the equator), with download and upload speeds averaged from GPS-quality Speedtest results. Colours show download speed in Mbps. Record density shows where more tile records are available; it does not show speed or network coverage.
                                     <br /><br /> </p>
 
                                 <p>Data source: <a href="https://github.com/teamookla/ookla-open-data" target="_blank" rel="noopener noreferrer">Ookla Global Mobile Network</a></p>
+                                <p>The source period is not documented in this prepared dataset. The map does not distinguish operators or 4G/5G. Missing points do not imply missing coverage.</p>
 
                             </div>
                         </div>
