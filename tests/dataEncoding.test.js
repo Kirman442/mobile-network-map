@@ -10,7 +10,29 @@ test('Netlify middleware streams encoded assets with correct headers without tou
         });
         assert.equal(response.headers.get('content-encoding'), encoding);
         assert.equal(response.headers.get('content-type'), 'application/vnd.apache.arrow.file');
+        assert.equal(response.headers.get('cache-control'), 'no-store, no-transform');
         assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+    }
+});
+
+test('production enables revalidation and preserves validators, 304 and updated bodies', async () => {
+    for (const status of [200, 304]) {
+        const response = await dataEncoding(new Request('https://example.test/data/belgium.arrow.br', {
+            headers: { 'If-None-Match': '"previous"' }
+        }), {
+            deploy: { context: 'production' },
+            next: async options => {
+                assert.equal(options.sendConditionalRequest, true);
+                return new Response(status === 200 ? 'updated' : null, {
+                    status, headers: { ETag: status === 200 ? '"updated"' : '"previous"' }
+                });
+            }
+        });
+        assert.equal(response.status, status);
+        assert.equal(response.headers.get('cache-control'), 'public, max-age=0, must-revalidate, no-transform');
+        assert.equal(response.headers.get('etag'), status === 200 ? '"updated"' : '"previous"');
+        assert.equal(response.headers.get('content-encoding'), 'br');
+        assert.equal(await response.text(), status === 200 ? 'updated' : '');
     }
 });
 

@@ -19,7 +19,7 @@ The tests cover all 42 copied Arrow datasets and their gzip/Brotli variants, mul
 
 ## What the map means
 
-- **Download speed** colours tile locations by the average download speed on a 0–200+ Mbps scale. Values above 200 Mbps share the final colour. Point tooltips and picking are disabled.
+- **Download speed** colours tile locations by the average download speed on a 0–150+ Mbps scale. Values above 150 Mbps share the final colour. Point tooltips and picking are disabled.
 - **Record density** is a relative density of loaded tile records in the current view. It does not represent speed, test counts, or coverage.
 - The counter reports loaded **tile records**, not individual Speedtest measurements.
 - Points derive from zoom-level-16 tiles (about 610.8 metres across at the equator). Circle size is a display choice, not the tile footprint.
@@ -56,7 +56,7 @@ GeoArrow, FFI, SharedArrayBuffer and cross-origin isolation are not required. Th
 
 For 1,235,099 records, numeric payload is 29.64 MB, one palette 4.94 MB and four palettes 19.76 MB. The compact background input temporarily adds 4.94 MB. After all palettes are prepared, final numeric+colour payload remains 49.40 MB (40 bytes per record); background preparation reduces work before the first frame, not final cache size. IPC metadata/padding, JS objects, browser decoding and GPU buffers are additional. These figures are not peak RSS.
 
-Download colours interpolate through 0, 25, 50, 100, 150, and 200 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
+Download colours interpolate through 0, 25, 50, 75, 100, and 150 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
 
 Record density retains unit weights, SUM aggregation and a 12-pixel kernel radius. Its visual presentation uses intensity 0.6, a fading threshold of 0.15 and opacity 0.7 to reduce broad opaque colour patches while retaining denser areas. These settings affect display, not the number or weight of records; colours remain relative to the current view.
 
@@ -92,4 +92,4 @@ Use a feature branch and pull request, validate its Netlify preview, then merge 
 
 Hashed assets have immutable caching. Netlify headers assign the correct JS/CSS/WASM content types; no blanket WASM content type is applied to all assets.
 
-Netlify builds set `VITE_ARROW_TRANSPORT=suffix`. A streaming Edge Function sets the Arrow MIME and Content-Encoding for `.arrow.br`/`.arrow.gz` responses; ordinary custom headers alone are insufficient for this encoding contract. Data responses use `no-store, no-transform` for the comparison phase. Verify actual encoded bytes and browser decoding on the Deploy Preview, rather than assuming a successful build proves CDN behavior. A local production build with this variable requires equivalent encoded HTTP serving; normal `npm run preview` uses identity Arrow.
+Netlify builds set `VITE_ARROW_TRANSPORT=suffix`. A streaming Edge Function sets the Arrow MIME and Content-Encoding for `.arrow.br`/`.arrow.gz` responses; ordinary custom headers alone are insufficient for this encoding contract. Deploy Previews and local serving retain `no-store, no-transform` for comparisons. In the Netlify `production` deploy context, data responses use `public, max-age=0, must-revalidate, no-transform`: the browser may store data but must revalidate before reuse. The middleware forwards conditional requests to the static origin and preserves ETag and 304 responses, avoiding a body transfer when the origin confirms an unchanged file. Data URLs are not fingerprinted, so they deliberately do not use a long-lived immutable browser cache. Production caching still needs a live smoke test after an approved merge. Verify actual encoded bytes and browser decoding on the Deploy Preview, rather than assuming a successful build proves CDN behavior. A local production build with this variable requires equivalent encoded HTTP serving; normal `npm run preview` uses identity Arrow.
