@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 
-const ColorLegend = ({ schemeDefinition, activeLayerKey }) => {
+const ColorLegend = ({ schemeDefinition, activeLayerKey, tooltipEnabled, setTooltipEnabled }) => {
     if (!schemeDefinition) return null;
     const { domain, colorRange } = schemeDefinition;
     const density = activeLayerKey === 'heatmap';
@@ -19,7 +19,15 @@ const ColorLegend = ({ schemeDefinition, activeLayerKey }) => {
                 <span className="legend-label-min">{density ? 'Lower' : min / 1000 + ' Mbps'}</span>
                 <span className="legend-label-max">{density ? 'Higher' : max / 1000 + '+ Mbps'}</span>
             </div>
-            <p className="legend-note">{density ? 'Relative to the current view. More records do not mean faster internet.' : 'Colour stops: ' + domain.map(value => value / 1000).join(' · ') + ' Mbps. Values above ' + max / 1000 + ' Mbps share the final colour.'}</p>
+            <p className="legend-note">{density ? 'Relative to the current view. More records do not mean faster internet.' : <>
+                {'Colour stops: ' + domain.map(value => value / 1000).join(' · ') + ' Mbps.'}
+                <br />
+                {'Values above ' + max / 1000 + ' Mbps share the final colour.'}
+            </>}</p>
+            {!density && <label className="tooltip-toggle">
+                <input type="checkbox" checked={tooltipEnabled} onChange={event => setTooltipEnabled(event.target.checked)} />
+                <span>Show download/upload tooltip</span>
+            </label>}
         </div>
     );
 };
@@ -28,6 +36,8 @@ ColorLegend.propTypes = {
         domain: PropTypes.arrayOf(PropTypes.number).isRequired,
         colorRange: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.number)).isRequired
     }),
-    activeLayerKey: PropTypes.string
+    activeLayerKey: PropTypes.string,
+    tooltipEnabled: PropTypes.bool.isRequired,
+    setTooltipEnabled: PropTypes.func.isRequired
 };
 export default ColorLegend;

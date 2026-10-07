@@ -97,6 +97,8 @@
 .panel-container[hidden] { display: none; }
 button:focus-visible { outline: 2px solid #b7d8ff; outline-offset: 2px; }
 .legend-note { font-size: 11px !important; color: #b3b7bc; }
+.tooltip-toggle { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: #b3b7bc; cursor: pointer; }
+.tooltip-toggle input { margin: 0; accent-color: #8bc34a; }
 
 .panel-container.mobile.open {
     right: 20px;

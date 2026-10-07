@@ -19,6 +19,7 @@ const INITIAL_VIEW_STATE = {
 };
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/';
 const numberFormatter = new Intl.NumberFormat('en');
+const speedFormatter = new Intl.NumberFormat('en', { maximumFractionDigits: 2 });
 
 export default function ArrowMap() {
     const [mapStyle, setMapStyle] = useState(true);
@@ -28,6 +29,7 @@ export default function ArrowMap() {
     const [basemapError, setBasemapError] = useState(false);
     const [basemapAttempt, setBasemapAttempt] = useState(0);
     const [activeLayerKey, setActiveLayerKey] = useState('scatterplot');
+    const [tooltipEnabled, setTooltipEnabled] = useState(false);
     const [activeColorSchemeKey, setActiveColorSchemeKey] = useState('ElectricViolet');
     const [activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey] = useState('BrightSpectrum');
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
@@ -185,19 +187,29 @@ export default function ArrowMap() {
                     getFillColor: { value: paletteController.current?.colors(chunk, activeColorSchemeKey) || chunk.colors[activeColorSchemeKey], size: 4, normalized: true }
                 }
             },
-            pickable: false,
+            pickable: tooltipEnabled,
             getRadius: 200,
             radiusMinPixels: 0,
             radiusMaxPixels: 8,
             parameters: { depthWriteEnabled: false }
         }));
-    }, [chunks, chunkIndex, densityData, activeLayerKey, activeColorSchemeKey, activeColorHexagonSchemeKey]);
+    }, [chunks, chunkIndex, densityData, activeLayerKey, activeColorSchemeKey, activeColorHexagonSchemeKey, tooltipEnabled]);
+
+    const getTooltip = useCallback(({ picked, index, layer }) => {
+        if (!tooltipEnabled || activeLayerKey !== 'scatterplot' || !picked || index < 0) return null;
+        // Binary picking provides an index even when there is no row object.
+        const chunk = chunks.find(item => layer?.id === 'speed-' + item.id);
+        if (!chunk || index >= chunk.length) return null;
+        const offset = index * 6;
+        return { text: 'Download: ' + speedFormatter.format(chunk.src[offset + 3] / 1000) + ' Mbps\n' +
+            'Upload: ' + speedFormatter.format(chunk.src[offset + 4] / 1000) + ' Mbps' };
+    }, [tooltipEnabled, activeLayerKey, chunks]);
 
     return (
         <main className="map-app" aria-label="Mobile internet performance map">
             <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={{
                 dragPan: true, touchZoom: true, touchRotate: true, touchPitch: false
-            }} layers={layers} useDevicePixels={false} onAfterRender={() => {
+            }} layers={layers} getTooltip={getTooltip} useDevicePixels={false} onAfterRender={() => {
                 // Start only after the full (or partial, on file failure) map has rendered.
                 const controller = paletteController.current;
                 if (!progress.loading && chunks.length && controller?.chunks.length === chunks.length) controller.start();
@@ -214,6 +226,7 @@ export default function ArrowMap() {
                 activeColorSchemeKey={activeColorSchemeKey} setActiveColorSchemeKey={requestPalette}
                 activeLayerKey={activeLayerKey} setActiveLayerKey={setActiveLayerKey}
                 totalDataLenght={chunkIndex.length} isMobileView={isMobileView}
+                tooltipEnabled={tooltipEnabled} setTooltipEnabled={setTooltipEnabled}
             />
             {progress.loading && <div className="load-status" role="status">
                 Processed {progress.completed} of {COUNTRIES.length} files

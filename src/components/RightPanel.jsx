@@ -3,7 +3,7 @@ import '../css/rightPanel.css';
 import { SCHEME_REGISTRY } from './ColorScaleMaps.js';
 import ColorLegend from './ColorLegend';
 
-const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveColorSchemeKey, activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey, activeLayerKey, setActiveLayerKey, totalDataLenght, isMobileView }) => {
+const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveColorSchemeKey, activeColorHexagonSchemeKey, setActiveColorHexagonSchemeKey, activeLayerKey, setActiveLayerKey, totalDataLenght, isMobileView, tooltipEnabled, setTooltipEnabled }) => {
     const [isInfoExpanded, setIsInfoExpanded] = useState(true);
     const [isDatasetExpanded, setIsDatasetExpanded] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -172,6 +172,7 @@ const LegendPanel = ({ mapStyle, setMapStyle, activeColorSchemeKey, setActiveCol
                                 <ColorLegend
                                     schemeDefinition={activeSchemeDefinition}
                                     activeLayerKey={activeLayerKey} // Передаем активный слой, чтобы Легенда могла формировать заголовок
+                                    tooltipEnabled={tooltipEnabled} setTooltipEnabled={setTooltipEnabled}
                                 />
                             </div>
                         </div>

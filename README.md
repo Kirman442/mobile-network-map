@@ -19,7 +19,7 @@ The tests cover all 42 copied Arrow datasets and their gzip/Brotli variants, mul
 
 ## What the map means
 
-- **Download speed** colours tile locations by the average download speed on a 0–150+ Mbps scale. Values above 150 Mbps share the final colour. Point tooltips and picking are disabled.
+- **Download speed** colours tile locations by the average download speed on a 0–150+ Mbps scale. Values above 150 Mbps share the final colour. An optional checkbox below the legend enables point tooltips showing actual download and upload speeds in Mbps; tooltips and picking are disabled by default. Record density has no point tooltip.
 - **Record density** is a relative density of loaded tile records in the current view. It does not represent speed, test counts, or coverage.
 - The counter reports loaded **tile records**, not individual Speedtest measurements.
 - Points derive from zoom-level-16 tiles (about 610.8 metres across at the equator). Circle size is a display choice, not the tile footprint.
