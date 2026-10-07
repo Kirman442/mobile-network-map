@@ -1,6 +1,6 @@
 import { scaleLinear } from 'd3-scale';
 
-export const SPEED_DOMAIN_DKBPS = [0, 25000, 50000, 100000, 200000, 300000];
+export const SPEED_DOMAIN_DKBPS = [0, 25000, 50000, 100000, 150000, 200000];
 export const STRIDE_BYTES = 6 * Float32Array.BYTES_PER_ELEMENT;
 // export const SPEED_DOMAIN_UKBPS = [1, 150000, 300000, 500000, 700000, 8000000, 930000]
 

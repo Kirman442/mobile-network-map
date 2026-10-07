@@ -19,7 +19,7 @@ The tests cover all 42 copied Arrow datasets and their gzip/Brotli variants, mul
 
 ## What the map means
 
-- **Download speed** colours tile locations by the average download speed on a 0–300+ Mbps scale. Values above 300 Mbps share the final colour. Point tooltips and picking are disabled.
+- **Download speed** colours tile locations by the average download speed on a 0–200+ Mbps scale. Values above 200 Mbps share the final colour. Point tooltips and picking are disabled.
 - **Record density** is a relative density of loaded tile records in the current view. It does not represent speed, test counts, or coverage.
 - The counter reports loaded **tile records**, not individual Speedtest measurements.
 - Points derive from zoom-level-16 tiles (about 610.8 metres across at the equator). Circle size is a display choice, not the tile footprint.
@@ -56,7 +56,7 @@ GeoArrow, FFI, SharedArrayBuffer and cross-origin isolation are not required. Th
 
 For 1,235,099 records, numeric payload is 29.64 MB, one palette 4.94 MB and four palettes 19.76 MB. The compact background input temporarily adds 4.94 MB. After all palettes are prepared, final numeric+colour payload remains 49.40 MB (40 bytes per record); background preparation reduces work before the first frame, not final cache size. IPC metadata/padding, JS objects, browser decoding and GPU buffers are additional. These figures are not peak RSS.
 
-Download colours interpolate through 0, 25, 50, 100, 200, and 300 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
+Download colours interpolate through 0, 25, 50, 100, 150, and 200 Mbps. Each stop has one colour; values above the maximum clamp to the final colour. The legend uses the same non-uniform stop positions. There is no speed multiplier, and the underlying speed values remain unchanged.
 
 Record density retains unit weights, SUM aggregation and a 12-pixel kernel radius. Its visual presentation uses intensity 0.6, a fading threshold of 0.15 and opacity 0.7 to reduce broad opaque colour patches while retaining denser areas. These settings affect display, not the number or weight of records; colours remain relative to the current view.
 
