@@ -10,6 +10,8 @@ import WorkerPool from './workers/workerPool';
 import ArrowWorker from './workers/arrowWorker?worker';
 import PaletteWorker from './workers/paletteWorker?worker';
 import PaletteController from './workers/paletteController.js';
+import { benchmarkWorkerCount, startWorkerBenchmark } from './data/workerBenchmark.js';
+import WorkerBenchmarkPanel from './WorkerBenchmarkPanel.jsx';
 import LegendPanel from './RightPanel.jsx';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -20,8 +22,12 @@ const INITIAL_VIEW_STATE = {
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/';
 const numberFormatter = new Intl.NumberFormat('en');
 const speedFormatter = new Intl.NumberFormat('en', { maximumFractionDigits: 2 });
+const benchmarkWorkers = benchmarkWorkerCount(import.meta.env.MODE, window.location.search);
+const expectedRecords = COUNTRIES.reduce((sum, country) => sum + country.records, 0);
 
 export default function ArrowMap() {
+    const benchmark = useRef(null);
+    const [benchmarkReport, setBenchmarkReport] = useState(null);
     const [mapStyle, setMapStyle] = useState(true);
     const [chunks, setChunks] = useState([]);
     const [progress, setProgress] = useState({ completed: 0, failed: [], loading: true });
@@ -82,6 +88,9 @@ export default function ArrowMap() {
         setChunks([]);
         setProgress({ completed: 0, failed: [], loading: true });
         const started = performance.now();
+        setBenchmarkReport(null);
+        benchmark.current?.dispose();
+        benchmark.current = benchmarkWorkers ? startWorkerBenchmark(benchmarkWorkers, expectedRecords, setBenchmarkReport) : null;
         let loadedRecords = 0;
         let decodeMs = 0;
         function flushChunks() {
@@ -93,13 +102,14 @@ export default function ArrowMap() {
         }
         async function load() {
             try {
-                pool = new WorkerPool(ArrowWorker);
+                pool = new WorkerPool(ArrowWorker, benchmarkWorkers);
                 await Promise.all(COUNTRIES.map(async country => {
                     try {
                         const result = await pool.enqueueTask({ country, palette: selected });
                         if (cancelled) return;
                         loadedRecords += result.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
                         decodeMs += result.decodeMs;
+                        benchmark.current?.country(result.decodeMs);
                         const additions = result.chunks.map((chunk, index) => ({ ...chunk, id: country.key + ':' + index }));
                         loadedChunks.push(...additions);
                         pendingChunks.push(...additions);
@@ -107,6 +117,7 @@ export default function ArrowMap() {
                         setProgress(previous => ({ ...previous, completed: previous.completed + 1 }));
                     } catch (error) {
                         if (cancelled) return;
+                        benchmark.current?.failed();
                         setProgress(previous => ({
                             ...previous, completed: previous.completed + 1,
                             failed: [...previous.failed, { file: country.key, message: error.message }]
@@ -133,6 +144,7 @@ export default function ArrowMap() {
                     }));
                 }
             } catch (error) {
+                if (!cancelled) benchmark.current?.failed();
                 if (!cancelled) setProgress(previous => ({
                     ...previous, failed: [{ file: 'Data loader', message: error.message }]
                 }));
@@ -140,11 +152,13 @@ export default function ArrowMap() {
                 pool?.terminate();
                 flushChunks();
                 if (!cancelled) setProgress(previous => ({ ...previous, loading: false }));
+                if (!cancelled) benchmark.current?.dataReady();
             }
         }
         load();
         return () => {
             cancelled = true;
+            benchmark.current?.dispose();
             if (frame) cancelAnimationFrame(frame);
             pool?.terminate();
             requestGeneration.current = requestGeneration.current + 1;
@@ -210,6 +224,7 @@ export default function ArrowMap() {
             <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={{
                 dragPan: true, touchZoom: true, touchRotate: true, touchPitch: false
             }} layers={layers} getTooltip={getTooltip} useDevicePixels={false} onAfterRender={() => {
+                benchmark.current?.rendered(chunkIndex.length, !progress.loading);
                 // Start only after the full (or partial, on file failure) map has rendered.
                 const controller = paletteController.current;
                 if (!progress.loading && chunks.length && controller?.chunks.length === chunks.length) controller.start();
@@ -218,6 +233,7 @@ export default function ArrowMap() {
                     onError={() => setBasemapError(true)} onLoad={() => setBasemapError(false)}
                     mapStyle={BASEMAP + (mapStyle ? 'dark-matter-nolabels' : 'dark-matter') + '-gl-style/style.json'} />
             </DeckGL>
+            {benchmarkWorkers && <WorkerBenchmarkPanel workers={benchmarkWorkers} report={benchmarkReport} />}
             {!isMobileView && <div className="rotate-shift">Hold Shift to rotate</div>}
             <LegendPanel
                 mapStyle={mapStyle} setMapStyle={setMapStyle}

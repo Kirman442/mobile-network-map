@@ -9,6 +9,7 @@
     "deploy": "gh-pages -d dist",
     "dev": "vite",
     "build": "vite build",
+    "build:workerbench": "vite build --mode workerbench",
     "lint": "eslint .",
     "test": "node --test tests/*.test.js",
     "preview": "vite preview"

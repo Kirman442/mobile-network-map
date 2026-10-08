@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { benchmarkServer } from './benchmarkServer.js'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: "/", // /mobile-network-map
   plugins: [
-    react()
+    react(),
+    ...(mode === 'workerbench' ? [benchmarkServer()] : [])
   ],
   worker: {
     format: 'es',
@@ -23,4 +25,4 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
   // Transferable ArrayBuffers do not require cross-origin isolation.
-});
+}));

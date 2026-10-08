@@ -51,3 +51,18 @@ test('reused workers receive each country task with its selected palette', async
     await results;
     pool.terminate();
 });
+
+test('eight-worker comparison runs only eight tasks at once and drains the same dataset', async () => {
+    FakeWorker.instances = [];
+    const pool = new WorkerPool(FakeWorker, 8);
+    const result = Promise.all(Array.from({ length: 42 }, (_, index) => pool.enqueueTask({ index })));
+    assert.equal(FakeWorker.instances.length, 8);
+    assert.equal(pool.queue.length, 34);
+    while (pool.workers.some(slot => slot.task)) {
+        for (const slot of pool.workers) {
+            if (slot.task) slot.worker.reply(true, slot.task.data.index);
+        }
+    }
+    assert.deepEqual(await result, Array.from({ length: 42 }, (_, index) => index));
+    pool.terminate();
+});
