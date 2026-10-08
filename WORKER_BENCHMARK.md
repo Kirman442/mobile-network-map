@@ -54,6 +54,8 @@ Three repeated runs per setting were collected through Netlify after excluding t
 
 Full-frame ranges were 4.46–12.42 seconds and 4.69–8.52 seconds. The median improvement is about 12.4%, but the small sample and wide variation prevent attributing that difference confidently to the pool size. First visits were 10.57 seconds for four and 7.66 seconds for eight; their different startup/CDN conditions make them unsuitable as a direct comparison. Raw reports: [benchmarks/workers-netlify-results.json](benchmarks/workers-netlify-results.json).
 
+A subsequent unpaired eight-worker verification visit took 13.75 seconds and still loaded every record without errors. It occurred while the experiment was being committed/pushed, so it is not included in the paired series; it reinforces the need to account for variable network/background conditions. Its report is retained in [benchmarks/workers-netlify-verification.json](benchmarks/workers-netlify-verification.json).
+
 Recommendation: keep production unchanged while collecting more paired runs on the user's browser and, if available, a faster connection and a device reporting more processors. A possible improvement remains plausible; a universal fixed pool of eight has not been justified.
 
 Use both URLs of the same draft deployment, alternating settings. Keep the tab visible and use the same viewport, layer, palette and cache conditions. Run at least five times per setting; record the first cold page visit separately. Prefer Full frame and First points over DevTools Finish, which also includes unrelated requests.

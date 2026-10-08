@@ -1,0 +1,23 @@
+{
+  "conditions": "Additional unpaired verification visit with eight workers after benchmark collection. Git commit/push occurred during loading; not included in the paired series.",
+  "report": {
+    "workers": 8,
+    "hardwareConcurrency": 4,
+    "records": 1235099,
+    "expectedRecords": 1235099,
+    "files": 42,
+    "failures": 0,
+    "stayedVisible": true,
+    "firstFrameMs": 814.5,
+    "dataReadyMs": 13706.299999998882,
+    "fullFrameMs": 13746.699999999255,
+    "workerProcessingMs": 624.7999999914318,
+    "maxFrameGapMs": 116.60000000000036,
+    "frameGapsOver50Ms": 10,
+    "longTasks": 3,
+    "longTaskMs": 175,
+    "peakMainHeapBytes": 65127735,
+    "note": "Times start at the data-loading effect. Frames are deck.gl onAfterRender callbacks, not GPU completion. Heap samples cover the main JS heap only, excluding workers and GPU. Background palettes start after this measurement.",
+    "valid": true
+  }
+}
