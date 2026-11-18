@@ -11,6 +11,8 @@ import ArrowWorker from './workers/arrowWorker?worker';
 import PaletteWorker from './workers/paletteWorker?worker';
 import PaletteController from './workers/paletteController.js';
 import LegendPanel from './RightPanel.jsx';
+import LegalDialog from './LegalDialog.jsx';
+import MapAttribution from './MapAttribution.jsx';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const INITIAL_VIEW_STATE = {
@@ -22,6 +24,7 @@ const numberFormatter = new Intl.NumberFormat('en');
 const speedFormatter = new Intl.NumberFormat('en', { maximumFractionDigits: 2 });
 
 export default function ArrowMap() {
+    const attributionHost = useRef(null);
     const [mapStyle, setMapStyle] = useState(true);
     const [chunks, setChunks] = useState([]);
     const [progress, setProgress] = useState({ completed: 0, failed: [], loading: true });
@@ -214,10 +217,14 @@ export default function ArrowMap() {
                 const controller = paletteController.current;
                 if (!progress.loading && chunks.length && controller?.chunks.length === chunks.length) controller.start();
             }}>
-                <Map key={basemapAttempt}
+                <Map key={basemapAttempt} attributionControl={false}
                     onError={() => setBasemapError(true)} onLoad={() => setBasemapError(false)}
-                    mapStyle={BASEMAP + (mapStyle ? 'dark-matter-nolabels' : 'dark-matter') + '-gl-style/style.json'} />
+                    mapStyle={BASEMAP + (mapStyle ? 'dark-matter-nolabels' : 'dark-matter') + '-gl-style/style.json'}>
+                    <MapAttribution containerRef={attributionHost} />
+                </Map>
             </DeckGL>
+            <div ref={attributionHost} className="map-attribution-overlay" />
+            <LegalDialog />
             {!isMobileView && <div className="rotate-shift">Hold Shift to rotate</div>}
             <LegendPanel
                 mapStyle={mapStyle} setMapStyle={setMapStyle}
