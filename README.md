@@ -92,7 +92,7 @@ Use a feature branch and pull request against `production`, validate its Netlify
 
 ### Custom-domain migration
 
-Canonical and Open Graph metadata use `https://mobilfunk.krmn.app/`. Application resources and navigation remain origin-relative. The web app manifest is `/site.webmanifest`, with `start_url` and `scope` both `/`, so it remains valid on the existing Netlify origin and on previews before the domain cutover. Vite's `base` remains `/`; the data inventory at `public/data/manifest.json` is unrelated and unchanged.
+Canonical and Open Graph metadata use `https://mobilfunk.krmn.app/`. Application resources and navigation remain origin-relative. The web app manifest is `/site.webmanifest`, with `start_url` and `scope` both `/`, so it remains valid on the existing Netlify origin and on previews before the domain cutover. A narrowly scoped rule in `public/_headers` serves it as `application/manifest+json`. Vite's `base` remains `/`; the data inventory at `public/data/manifest.json` is unrelated and unchanged.
 
 No service worker, registration code, Workbox or PWA plugin is present in the application. No worker is introduced or registered by this migration. The existing `Web Workers` handle data/palettes and are not service workers.
 
