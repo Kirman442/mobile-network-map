@@ -10,7 +10,7 @@ The user explicitly requested name and email only, without a postal address. Do 
 
 ## Content sources and adaptation
 
-The main source, supplied by the user, is the published [Unfallatlas Datenschutz](https://unfallatlas.netlify.app/accidents/app.html?screen=about#about-privacy). The public app and its NativeReference module were read on 18 November 2026. Hosting, retention criteria, international transfers, email contact and rights follow that text.
+The main source, supplied by the user, is the published [Unfallatlas Datenschutz](https://unfallatlas.krmn.app/accidents/app.html?screen=about#about-privacy). The public app and its NativeReference module were read on 18 November 2026. Hosting, retention criteria, international transfers, email contact and rights follow that text.
 
 Changes specific to MobileNetwork:
 

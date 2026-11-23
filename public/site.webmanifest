@@ -1,0 +1,15 @@
+{
+  "name": "Internet Speed Data Map",
+  "short_name": "MobileNetwork",
+  "description": "Interactive views of aggregated mobile network performance across 42 countries.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "icons": [
+    {
+      "src": "/bandwidth_32_w.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}
