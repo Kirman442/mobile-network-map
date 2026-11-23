@@ -1,6 +1,6 @@
 # Mobile network performance map
 
-A React / MapLibre / deck.gl map of preprocessed Ookla mobile network performance records in 42 countries. The published site is https://mobile-network-map.netlify.app/.
+A React / MapLibre / deck.gl map of preprocessed Ookla mobile network performance records in 42 countries. The target production hostname is `mobilfunk.krmn.app`; the application is served at the domain root (`/`).
 
 ## Run and verify
 
@@ -89,6 +89,23 @@ Netlify is linked to `Kirman442/mobile-network-map`:
 Use a feature branch and pull request against `production`, validate its Netlify preview, then merge only after approval. Pushing/merging to `production` triggers production deployment. Preserve `main` as the original implementation; it is not the deployment branch.
 
 `npm run deploy` is a legacy GitHub Pages command, not the Netlify deployment command. The legacy workflow under `.github_res/workflows` is inactive. `src/components/dev` contains local ignored experiments and is not part of the application.
+
+### Custom-domain migration
+
+Canonical and Open Graph metadata use `https://mobilfunk.krmn.app/`. Application resources and navigation remain origin-relative. The web app manifest is `/site.webmanifest`, with `start_url` and `scope` both `/`, so it remains valid on the existing Netlify origin and on previews before the domain cutover. A narrowly scoped rule in `public/_headers` serves it as `application/manifest+json`. Vite's `base` remains `/`; the data inventory at `public/data/manifest.json` is unrelated and unchanged.
+
+No service worker, registration code, Workbox or PWA plugin is present in the application. No worker is introduced or registered by this migration. The existing `Web Workers` handle data/palettes and are not service workers.
+
+External services and domain dependencies:
+
+- **CARTO/CDN:** `src/components/ArrowBinaryMap.jsx` loads basemap styles from `basemaps.cartocdn.com`; the styles reference tiles, glyphs and sprites on `tiles.basemaps.cartocdn.com`. No map API key or token is configured in the repository. Check any provider-side account/origin restrictions separately during the domain cutover.
+- **Netlify Edge Function:** `netlify/edge-functions/data-encoding.js`, bound to `/data/*` in `netlify.toml`, streams encoded Arrow files and preserves cache validators. These routes are same-origin and do not hard-code the old domain. There are no conventional Netlify Functions or custom remote APIs in the source.
+- **Forms/Auth:** no Netlify Forms, Supabase or authentication integration is configured. The form in `src/components/LegalDialog.jsx` uses `method="dialog"` only to close the modal; it submits no data.
+- **External reference links:** `src/components/legalDocuments.js` and `src/components/RightPanel.jsx` link to legal policies, source data and documentation. These are ordinary links, not API integrations. The Unfallatlas reference in `docs/LEGAL_NOTICES.md` uses its new hostname.
+
+GitHub Pages remains enabled from the root of the `gh-pages` branch. The active `.github/workflows/verify.yml` only runs verification; the old `.github_res/workflows/deploy.yml` is not an active workflow. Manual `npm run deploy` can still publish to `gh-pages`. This migration does not disable Pages, modify its branch or adapt the root-based Vite build for the legacy project subpath.
+
+The Open Graph image uses the existing 32×32 PNG icon; there is no full-size social preview artwork in the repository. Hostname setup and old-host redirects belong to the separate hosting cutover, not this source change.
 
 Hashed assets have immutable caching. Netlify headers assign the correct JS/CSS/WASM content types; no blanket WASM content type is applied to all assets.
 
